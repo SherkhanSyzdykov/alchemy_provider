@@ -30,8 +30,6 @@ setuptools.setup(
     packages=setuptools.find_packages(where='.'),
     install_requires=[
         'orjson',
-        'six',
-        'greenlet',
         'SQLAlchemy',
         'SQLAlchemy-Utils'
     ],
