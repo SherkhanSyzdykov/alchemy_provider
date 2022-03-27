@@ -5,7 +5,7 @@ with open('./README.md', 'r', encoding='utf-8') as file:
 
 setuptools.setup(
     name='alchemy_provider',
-    version='0.0.1',
+    version='0.0.2',
     author='Sherkhan Syzdykov',
     author_email='syzdykovsherkhan@gmail.com',
     description='Dynamic query builder based on SQLAlchemy Core and ORM',
@@ -23,6 +23,10 @@ setuptools.setup(
         'Framework :: AsyncIO',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3 :: Only',
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
         'Programming Language :: Python :: 3.10',
         'License :: OSI Approved :: MIT License',
         'Operating System :: OS Independent',
@@ -33,5 +37,5 @@ setuptools.setup(
         'SQLAlchemy',
         'SQLAlchemy-Utils'
     ],
-    python_requires='>=3.10',
+    python_requires='>=3.6',
 )
