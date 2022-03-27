@@ -15,7 +15,7 @@ from sqlalchemy.sql.expression import BinaryExpression
 from sqlalchemy.sql.selectable import Alias
 from sqlalchemy_utils.functions import get_primary_keys
 
-from source.exception import (
+from alchemy_provider.exception import (
     ObjectDoesNotExistException,
     FiltersMustBePassedException,
     AttributeMustBeSetException,
@@ -24,7 +24,7 @@ from source.exception import (
     ColumnIsUniqueException,
     IncorrectReferenceNameException
 )
-from source.utils import clear_from_ellipsis
+from alchemy_provider.utils import clear_from_ellipsis
 
 
 class AlchemyFilters(ABC):
