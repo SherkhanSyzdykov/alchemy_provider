@@ -1,6 +1,7 @@
 """
 Implements base exception for AlchemyProvider
 """
+from typing import Union
 import orjson
 
 
@@ -9,18 +10,18 @@ class BaseProviderException(BaseException):
     DEFAULT_CODE = 'Error'
 
     detail: str = DEFAULT_DETAIL
-    code: str | int = DEFAULT_CODE
+    code: Union[str, int] = DEFAULT_CODE
 
     def __init__(
         self,
         detail: str = DEFAULT_DETAIL,
-        code: str | int = DEFAULT_CODE
+        code: Union[str, int] = DEFAULT_CODE
     ):
         self.detail = detail
         self.code = code
 
     @property
-    def dict(self) -> dict[str, str | int]:
+    def dict(self) -> dict[str, Union[str, int]]:
         return {
             'detail': self.detail,
             'code': self.code
