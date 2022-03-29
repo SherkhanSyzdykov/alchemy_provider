@@ -43,6 +43,7 @@ class AlchemyFilters(ABC):
     IN_OPERATOR = 'in'
     NOT_IN_OPERATOR = 'not_in'
     ALL_OBJECTS_FILTER = '__all__'
+    OR_LOOKUP = '__or__'
 
     LOOKUP_OPERATORS = MappingProxyType({
         EQUAL_OPERATOR:
@@ -176,26 +177,36 @@ class AlchemyFilters(ABC):
     ) -> BinaryExpression:
         """
         """
-        expressions = []
+        expressions: List[BinaryExpression] = []
         for lookup, value in filters.items():
-            if type(value) == dict:
-                self_method = getattr(self, lookup, None)
-                if self_method is not None:
-                    e = self_method(value)
-                else:
-                    e = self.build_where_clause(
-                        use_or=use_or,
-                        reference_name=lookup,
-                        **value
-                    )
-            else:
-                e = self._build_expression(
-                    lookup=lookup,
-                    value=value,
-                    reference_name=reference_name
-                )
+            self_method = getattr(self, lookup, None)
+            if self_method is not None:
+                expression = self_method(value)
+                expressions.append(expression)
+                continue
 
-            expressions.append(e)
+            if lookup == self.OR_LOOKUP:
+                expression = self.build_where_clause(
+                    use_or=True,
+                    **value
+                )
+                expressions.append(expression)
+                continue
+
+            if type(value) == dict:
+                expression = self.build_where_clause(
+                    reference_name=lookup,
+                    **value
+                )
+                expressions.append(expression)
+                continue
+
+            expression = self._build_expression(
+                lookup=lookup,
+                value=value,
+                reference_name=reference_name
+            )
+            expressions.append(expression)
 
         if use_or:
             return or_(*expressions)
@@ -379,7 +390,6 @@ class BaseAlchemyModelProvider(ABC):
         order_reversed: bool = None,
         limit: int = None,
         offset: int = None,
-        use_or: bool = False,
         **filters
     ) -> Select:
         """
@@ -402,10 +412,7 @@ class BaseAlchemyModelProvider(ABC):
             offset=offset,
         )
 
-        where_clause = self._filters.build_where_clause(
-            use_or=use_or,
-            **filters
-        )
+        where_clause = self._filters.build_where_clause(**filters)
         stmt = stmt.where(where_clause)
 
         return stmt
@@ -424,8 +431,7 @@ class BaseAlchemyModelProvider(ABC):
     def _base_update_stmt(
         self,
         filters: Mapping,
-        values: Mapping,
-        use_or: bool = False,
+        values: Mapping
     ) -> Union[Update, Select]:
         """
         Builds necessary statement for using it in update methods
@@ -434,10 +440,7 @@ class BaseAlchemyModelProvider(ABC):
         if not update_stmt:
             update_stmt = update(self._get_mapper)
 
-        where_clause = self._filters.build_where_clause(
-            use_or=use_or,
-            **filters
-        )
+        where_clause = self._filters.build_where_clause(**filters)
         update_stmt = update_stmt.values(**values)
         update_stmt = update_stmt.where(where_clause)
 
@@ -467,7 +470,6 @@ class BaseAlchemyModelProvider(ABC):
 
     async def _do_select_count(
         self,
-        use_or: bool = False,
         **filters
     ) -> int:
         """
@@ -476,17 +478,13 @@ class BaseAlchemyModelProvider(ABC):
         if stmt is None:
             stmt = select(func.count()).select_from(self._get_mapper)
 
-        where_clause = self._filters.build_where_clause(
-            use_or=use_or,
-            **filters
-        )
+        where_clause = self._filters.build_where_clause(**filters)
         stmt = stmt.where(where_clause)
 
         return await self._session.scalar(stmt)
 
     async def _do_get(
         self,
-        use_or: bool = False,
         **filters
     ) -> Tuple[DeclarativeMeta]:
         """
@@ -495,10 +493,7 @@ class BaseAlchemyModelProvider(ABC):
         if stmt is None:
             stmt = select(self._get_mapper)
 
-        where_clause = self._filters.build_where_clause(
-            use_or=use_or,
-            **filters
-        )
+        where_clause = self._filters.build_where_clause(**filters)
         stmt = stmt.where(where_clause)
 
         return (await self._session.execute(stmt)).first()
@@ -580,7 +575,6 @@ class BaseAlchemyModelProvider(ABC):
 
     async def _do_delete(
         self,
-        use_or: bool = False,
         **filters
     ) -> None:
         """
@@ -589,10 +583,7 @@ class BaseAlchemyModelProvider(ABC):
         if stmt is None:
             stmt = delete(self._get_mapper)
 
-        where_clause = self._filters.build_where_clause(
-            use_or=use_or,
-            **filters
-        )
+        where_clause = self._filters.build_where_clause(**filters)
         stmt = stmt.where(where_clause)
 
         # something went wrong, we couldn't find any solutions
@@ -642,7 +633,6 @@ class BaseAlchemyModelProvider(ABC):
         order_reversed: bool = ...,
         limit: int = ...,
         offset: int = ...,
-        use_or: bool = False,
         **filters
     ) -> List[Tuple[Any]]:
         """
@@ -653,10 +643,7 @@ class BaseAlchemyModelProvider(ABC):
         for lookup, value in filters.items():
             column_name, *_ = lookup.split(self._filters.LOOKUP_STRING)
             select_columns.append(self._get_column(column_name))
-        where_clause = self._filters.build_where_clause(
-            use_or=use_or,
-            **filters
-        )
+        where_clause = self._filters.build_where_clause(**filters)
         stmt = select(*select_columns).where(where_clause)
 
         stmt = self._bind_order_limit_offset_to_stmt(
@@ -688,7 +675,6 @@ class BaseAlchemyModelProvider(ABC):
 
     async def get_row(
         self,
-        use_or: bool = False,
         **filters
     ) -> Tuple[Any]:
         """
@@ -698,10 +684,7 @@ class BaseAlchemyModelProvider(ABC):
         for lookup, value in filters.items():
             column_name, *_ = lookup.split(self._filters.LOOKUP_STRING)
             select_columns.append(self._get_column(column_name))
-        where_clause = self._filters.build_where_clause(
-            use_or=use_or,
-            **filters
-        )
+        where_clause = self._filters.build_where_clause(**filters)
         stmt = select(*select_columns).where(where_clause)
         return (await self._session.execute(stmt)).first()
 
