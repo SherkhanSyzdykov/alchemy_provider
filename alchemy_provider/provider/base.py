@@ -6,7 +6,7 @@ from typing import (
     Generator, Dict, Union, Optional, Mapping, Any, Type, Tuple, List
 )
 from sqlalchemy import (
-    Table, Column, and_, select, insert, update, delete, func, nullslast
+    Table, Column, and_, select, insert, update, delete, func, nullslast, or_
 )
 from sqlalchemy.ext.asyncio import AsyncSession, async_scoped_session
 from sqlalchemy.orm import DeclarativeMeta
@@ -170,6 +170,7 @@ class AlchemyFilters(ABC):
 
     def build_where_clause(
         self,
+        use_or: bool = False,
         reference_name: Optional[str] = None,
         **filters: Dict[str, Any]
     ) -> BinaryExpression:
@@ -183,6 +184,7 @@ class AlchemyFilters(ABC):
                     e = self_method(value)
                 else:
                     e = self.build_where_clause(
+                        use_or=use_or,
                         reference_name=lookup,
                         **value
                     )
@@ -194,6 +196,9 @@ class AlchemyFilters(ABC):
                 )
 
             expressions.append(e)
+
+        if use_or:
+            return or_(*expressions)
 
         return and_(*expressions)
 
@@ -276,7 +281,7 @@ class BaseAlchemyModelProvider(ABC):
     def _get_first_pk_column_name(self) -> str:
         """
         If self._first_pk_column_name is not defined
-        searches in mapper pk columns, 
+        searches in mapper pk columns,
         sets to self._first_pk_column_name that column name and
         returns first of the columns name, e.g. id column name
         else returns self._first_pk_column_name
@@ -357,7 +362,7 @@ class BaseAlchemyModelProvider(ABC):
             if type(order_reversed) == bool:
                 by_column = by_column.desc() \
                     if order_reversed else by_column.asc()
-            
+
             select_stmt = select_stmt.order_by(nullslast(by_column))
 
         if type(limit) == int:
@@ -374,10 +379,11 @@ class BaseAlchemyModelProvider(ABC):
         order_reversed: bool = None,
         limit: int = None,
         offset: int = None,
+        use_or: bool = False,
         **filters
     ) -> Select:
         """
-        Builds select statement by passed filters 
+        Builds select statement by passed filters
         and return instance of Select class
         """
         filters = clear_from_ellipsis(**filters)
@@ -396,7 +402,10 @@ class BaseAlchemyModelProvider(ABC):
             offset=offset,
         )
 
-        where_clause = self._filters.build_where_clause(**filters)
+        where_clause = self._filters.build_where_clause(
+            use_or=use_or,
+            **filters
+        )
         stmt = stmt.where(where_clause)
 
         return stmt
@@ -415,7 +424,8 @@ class BaseAlchemyModelProvider(ABC):
     def _base_update_stmt(
         self,
         filters: Mapping,
-        values: Mapping
+        values: Mapping,
+        use_or: bool = False,
     ) -> Union[Update, Select]:
         """
         Builds necessary statement for using it in update methods
@@ -424,7 +434,10 @@ class BaseAlchemyModelProvider(ABC):
         if not update_stmt:
             update_stmt = update(self._get_mapper)
 
-        where_clause = self._filters.build_where_clause(**filters)
+        where_clause = self._filters.build_where_clause(
+            use_or=use_or,
+            **filters
+        )
         update_stmt = update_stmt.values(**values)
         update_stmt = update_stmt.where(where_clause)
 
@@ -454,6 +467,7 @@ class BaseAlchemyModelProvider(ABC):
 
     async def _do_select_count(
         self,
+        use_or: bool = False,
         **filters
     ) -> int:
         """
@@ -462,13 +476,17 @@ class BaseAlchemyModelProvider(ABC):
         if stmt is None:
             stmt = select(func.count()).select_from(self._get_mapper)
 
-        where_clause = self._filters.build_where_clause(**filters)
+        where_clause = self._filters.build_where_clause(
+            use_or=use_or,
+            **filters
+        )
         stmt = stmt.where(where_clause)
 
         return await self._session.scalar(stmt)
 
     async def _do_get(
         self,
+        use_or: bool = False,
         **filters
     ) -> Tuple[DeclarativeMeta]:
         """
@@ -477,7 +495,10 @@ class BaseAlchemyModelProvider(ABC):
         if stmt is None:
             stmt = select(self._get_mapper)
 
-        where_clause = self._filters.build_where_clause(**filters)
+        where_clause = self._filters.build_where_clause(
+            use_or=use_or,
+            **filters
+        )
         stmt = stmt.where(where_clause)
 
         return (await self._session.execute(stmt)).first()
@@ -559,6 +580,7 @@ class BaseAlchemyModelProvider(ABC):
 
     async def _do_delete(
         self,
+        use_or: bool = False,
         **filters
     ) -> None:
         """
@@ -567,7 +589,10 @@ class BaseAlchemyModelProvider(ABC):
         if stmt is None:
             stmt = delete(self._get_mapper)
 
-        where_clause = self._filters.build_where_clause(**filters)
+        where_clause = self._filters.build_where_clause(
+            use_or=use_or,
+            **filters
+        )
         stmt = stmt.where(where_clause)
 
         # something went wrong, we couldn't find any solutions
@@ -617,6 +642,7 @@ class BaseAlchemyModelProvider(ABC):
         order_reversed: bool = ...,
         limit: int = ...,
         offset: int = ...,
+        use_or: bool = False,
         **filters
     ) -> List[Tuple[Any]]:
         """
@@ -627,7 +653,10 @@ class BaseAlchemyModelProvider(ABC):
         for lookup, value in filters.items():
             column_name, *_ = lookup.split(self._filters.LOOKUP_STRING)
             select_columns.append(self._get_column(column_name))
-        where_clause = self._filters.build_where_clause(**filters)
+        where_clause = self._filters.build_where_clause(
+            use_or=use_or,
+            **filters
+        )
         stmt = select(*select_columns).where(where_clause)
 
         stmt = self._bind_order_limit_offset_to_stmt(
@@ -659,6 +688,7 @@ class BaseAlchemyModelProvider(ABC):
 
     async def get_row(
         self,
+        use_or: bool = False,
         **filters
     ) -> Tuple[Any]:
         """
@@ -668,7 +698,10 @@ class BaseAlchemyModelProvider(ABC):
         for lookup, value in filters.items():
             column_name, *_ = lookup.split(self._filters.LOOKUP_STRING)
             select_columns.append(self._get_column(column_name))
-        where_clause = self._filters.build_where_clause(**filters)
+        where_clause = self._filters.build_where_clause(
+            use_or=use_or,
+            **filters
+        )
         stmt = select(*select_columns).where(where_clause)
         return (await self._session.execute(stmt)).first()
 

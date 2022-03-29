@@ -1,11 +1,12 @@
 """
 Implements functions, classes, methods for another services and providers
 """
+from typing import Dict
 
 
 def clear_from_ellipsis(
-    **kwargs: dict[any, any]
-) -> dict[any, any]:
+    **kwargs: Dict[any, any]
+) -> Dict[any, any]:
     """
     Clears passed kwargs from ellipsis(...) and
     returns dict that not contains ellipsis as value.

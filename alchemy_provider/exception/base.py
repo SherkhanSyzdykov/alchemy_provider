@@ -1,7 +1,7 @@
 """
 Implements base exception for AlchemyProvider
 """
-from typing import Union
+from typing import Dict, Union
 import orjson
 
 
@@ -21,7 +21,7 @@ class BaseProviderException(BaseException):
         self.code = code
 
     @property
-    def dict(self) -> dict[str, Union[str, int]]:
+    def dict(self) -> Dict[str, Union[str, int]]:
         return {
             'detail': self.detail,
             'code': self.code
