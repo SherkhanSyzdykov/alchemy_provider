@@ -1,4 +1,5 @@
-from typing import Type, Union, TypedDict, is_typeddict, Dict
+from typing import Type, Union, TypedDict, is_typeddict, Dict, Any
+from types import UnionType
 from sqlalchemy import *
 from sqlalchemy.sql import Select
 from sqlalchemy.orm import DeclarativeMeta, RelationshipProperty, ColumnProperty
@@ -10,65 +11,78 @@ class ModelAttributeException(BaseException):
     ...
 
 
+{
+    'serial_number__in': ['dfsdf', 'asdfsdf'],
+    'is_active': '__all__',
+    'meter_type': {
+        '__or__': {
+            'name__ilike': '%dsf%',
+            'description': 'dfsdf'
+        }
+    }
+}
 
-class Provider:
-    _query: Union[Type[BaseQuery], BaseQuery]
 
-    def __init__(self,query: Union[Type[BaseQuery], BaseQuery]):
+class BaseQueryTypeProvider:
+    _query: Type[BaseQuery]
+
+    def __init__(self,query: Type[BaseQuery]):
         self._query = query
 
     @property
-    def get_query(self) -> Union[Type[BaseQuery], BaseQuery]:
+    def get_query(self) -> Type[BaseQuery]:
         return self._query
 
-    def _inner_join(
+    def _get_available_types_of_field(
+        self,
+        query: Type[BaseQuery],
+        field: str
+    ) -> Tuple[Any]:
+        annotation = query.__annotations__[field]
+        return getattr(annotation, '__args__', (annotation,))
+
+    def _join_base_query_type(
         self,
         select_stmt: Select,
-        query: Union[Type[BaseQuery], BaseQuery],
+        query: Type[BaseQuery],
+        field: str,
     ) -> Select:
-        """
-        select_stmt: select(test_model1.id, test_model1.name)
-        query:
-        class Test2(BaseQuery):
-            start_time: datetime
+        join_strategy = getattr(query, field, JoinStrategy)
+        model_field = getattr(query.get_model(), field)
 
-            class Meta:
-                model = test_model2
+        is_outer = False
 
-        return: select(
-        test_model1.id, test_model1.name, test_model2.start_time
-        ).innerjoin(test_model2, test_model1.related_field_pk = test_model2.pk)
-        """
-        model = query.get_model
+        available_types = self._get_available_types_of_field(
+            query=query,
+            field=field,
+        )
+        if type(None) in available_types:
+            is_outer = True
 
-        for field in self.get_query.__annotations__:
-            model_field = getattr(model, field, None)
-            if isinstance(model_field.property, ColumnProperty):
-                select_stmt.add_columns(model_field)
+        stmt = select_stmt.join(
+            model_field,
+            is_outer=is_outer,
+            full=join_strategy.full
+        )
+        return stmt
 
-
-    def _outer_join(
+    def _get_base_query_subtype(
         self,
-        select_stmt: Select,
-        query: TypedDict,
-    ):
-        """
-        select_stmt: select(test_model1.id, test_model1.name)
-        query:
-        class Test2(BaseQuery):
-            start_time: datetime
-
-            class Meta:
-                model = test_model2
-
-        return: select(
-        test_model1.id, test_model1.name, test_model2.start_time
-        ).outerjoin(test_model2, test_model1.related_field_pk = test_model2.pk)
-        """
-        pass
+        query: Type[BaseQuery],
+        field: str
+    ) -> Type[BaseQuery]:
+        available_types = self._get_available_types_of_field(
+            query=query,
+            field=field,
+        )
+        for type_ in available_types:
+            if issubclass(type_, BaseQuery):
+                return type_
 
     def _make_select_stmt_from_base_query_type(
         self,
+        query: Optional[Type[TypedDict]] = None,
+        select_stmt: Optional[Select] = None
     ) -> Select:
         """
         query: subclass of typing.TypedDict
@@ -77,44 +91,94 @@ class Provider:
             name: str
             test: bool
         """
-        model = self.get_query.get_model
-        stmt = select()
+        if query is None:
+            query = self.get_query
+
+        model = query.get_model()
+
+        stmt = select_stmt
+        if select_stmt is None:
+            stmt = select()
+
         for field in self.get_query.__annotations__:
             model_field = getattr(model, field, None)
             if isinstance(model_field.property, ColumnProperty):
-                stmt.add_columns(model_field)
+                stmt = stmt.add_columns(model_field)
+                continue
 
             if isinstance(model_field.property, RelationshipProperty):
-                related_model: DeclarativeMeta = model_field.property.mapper.class_
+                stmt = self._join_base_query_type(
+                    select_stmt=stmt,
+                    query=query,
+                    field=field,
+                )
+                stmt = self._make_select_stmt_from_base_query_type(
+                    query=self._get_base_query_subtype(
+                        query=query,
+                        field=field
+                    ),
+                    select_stmt=stmt,
+                )
+                continue
 
-            stmt = stmt.add_columns()
+            raise  # TODO
+
+        return stmt
 
 
-    def _make_select_stmt(
+class QueryInstanceProvider:
+    _query: BaseQuery
+
+    def __init__(
         self,
-        query: Union[Type[TypedDict], Dict]
-    ) -> Select:
-        """
-        query: Dataclass
-        example:
-        @dataclass
-        class Test:
-            name: str
-
-            class Meta:
-                model = TestModel
-
-        return: select(TestModel)
-        """
+        query: BaseQuery
+    ):
         self._query = query
-        model = self._get_model(query=query)
 
-        stmt = select()
-        for field in query.__dataclass_fields__:
-            model_field = getattr(model, field)
-            if isinstance(model_field.property, ColumnProperty):
-                stmt.add_columns(model_field)
+    @property
+    def get_query(self) -> BaseQuery:
+        return self._query
 
-            if isinstance(model_field.property, RelationshipProperty):
-                pass
+    def _make_select_stmt_by_query_instance(
+        self,
+        query: Optional[BaseQuery] = None,
+        select_stmt: Optional[Select] = None
+    ) -> Select:
+        if query is None:
+            query = self.get_query
+
+        model = query.get_model()
+
+        stmt = select_stmt
+        if select_stmt is None:
+            stmt = select()
+
+
+class DictProvider:
+    _query: Dict[str, Any]
+
+    def __init__(
+        self,
+        query: Dict[str, Any]
+    ):
+        self._query = query
+
+    @property
+    def get_query(self) -> Dict[str, Any]:
+        return self._query
+
+    def _make_select_stmt_by_query_instance(
+        self,
+        query: Optional[Dict[str, Any]] = None,
+        select_stmt: Optional[Select] = None,
+    ) -> Select:
+        if query is None:
+            query = self.get_query
+
+        model = query.get_model()
+
+        stmt = select_stmt
+        if select_stmt is None:
+            stmt = select()
+
 

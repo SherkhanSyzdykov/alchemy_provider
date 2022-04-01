@@ -1,10 +1,7 @@
 from abc import ABC
-from dataclasses import dataclass, make_dataclass
-from typing import Optional, Tuple, Type, Callable, Literal, Union
+from dataclasses import dataclass
+from typing import Tuple, Optional
 from sqlalchemy.orm import DeclarativeMeta
-from sqlalchemy.sql import outerjoin, join, Join, ClauseElement
-from sqlalchemy.sql.expression import FromClause
-import json
 from .models import *
 
 
@@ -13,22 +10,14 @@ class JoinStrategy:
     full: bool = False
 
 
+@dataclass
 class BaseQuery(ABC):
     class Meta(ABC):
-        mapper: DeclarativeMeta
-
-    def __init__(self, **kwargs):
-        for key, value in kwargs.items():
-            setattr(self, key, value)
-
-    # @staticmethod
-    # @property
-    # def get_meta(): -> Type[Meta]:
-    #     return self._meta
+        model: DeclarativeMeta
 
     @classmethod
-    def get_mapper(cls) -> DeclarativeMeta:
-        return cls.Meta.mapper
+    def get_model(cls) -> DeclarativeMeta:
+        return cls.Meta.model
 
     def set_certain_attr_feature(self, field_name, value):
         pass  # TODO
@@ -39,22 +28,22 @@ class MeterTypeQuery(BaseQuery):
     description: str
 
     class Meta(BaseQuery.Meta):
-        mapper = MeterTypeModel
+        model = MeterTypeModel
 
 
 class ResourceQuery(BaseQuery):
     name: str
 
     class Meta(BaseQuery.Meta):
-        mapper = ResourceModel
+        model = ResourceModel
 
 
 class MeterTypeResourcesQuery(MeterTypeQuery):
-    resources: Tuple[ResourceQuery] = tuple()
+    resources: Tuple[ResourceQuery]
 
 
 class ResourceMeterTypesQuery(ResourceQuery):
-    meter_types: Tuple[MeterTypeQuery] = tuple()
+    meter_types: Tuple[MeterTypeQuery]
 
 
 class MeterInlineQuery(BaseQuery):
@@ -62,7 +51,7 @@ class MeterInlineQuery(BaseQuery):
     is_active: bool
 
     class Meta(BaseQuery.Meta):
-        mapper = MeterInlineModel
+        model = MeterInlineModel
 
 
 class MeterInlineMeterTypeQuery(MeterInlineQuery):
@@ -72,4 +61,4 @@ class MeterInlineMeterTypeQuery(MeterInlineQuery):
 
 
 class MeterInlineMeterTypeResourcesQuery(MeterInlineQuery):
-    meter_type: Optional[MeterTypeResourcesQuery] = None
+    meter_type: Optional[MeterTypeResourcesQuery]

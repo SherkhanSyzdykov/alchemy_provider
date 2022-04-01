@@ -39,11 +39,13 @@ class MeterTypeModel(AbstractBaseModel):
     __tablename__ = 'meter_type'
 
     name = Column(String(255), nullable=False, unique=True)
+    description = Column(String)
 
     meters = relationship('MeterInlineModel', back_populates='meter_type')
     resources = relationship(
         'MeterTypeResourceAssocModel',
-        back_populates='meter_type'
+        back_populates='meter_type',
+        lazy='joined'
     )
 
 
@@ -99,6 +101,7 @@ class MeterInlineModel(AbstractBaseModel):
             f'{MeterTypeModel.__tablename__}.{MeterTypeModel.id.name}',
             ondelete='CASCADE'
         ),
+        nullable=False,
     )
     meter_type = relationship(
         'MeterTypeModel',

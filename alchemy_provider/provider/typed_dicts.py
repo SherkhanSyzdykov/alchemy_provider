@@ -1,26 +1,28 @@
 from typing import Optional, Tuple, TypedDict
+from sqlalchemy.orm import DeclarativeMeta
 from .models import *
 
 
 class BaseQuery(TypedDict):
     class Meta:
-        pass
+        mapper: DeclarativeMeta
 
-    _meta = Meta
+    def __init__(self):
+        super().__init__()
 
 
-class MeterTypeQuery(TypedDict):
+class MeterTypeQuery(BaseQuery):
     name: str
 
     class Meta:
-        model = MeterTypeModel
+        mapper = MeterTypeModel
 
 
-class ResourceQuery(TypedDict):
+class ResourceQuery(BaseQuery):
     name: str
 
     class Meta:
-        model = ResourceModel
+        mapper = ResourceModel
 
 
 class MeterTypeResourcesQuery(MeterTypeQuery):
@@ -31,12 +33,12 @@ class ResourceMeterTypesQuery(ResourceQuery):
     meter_types: Tuple[MeterTypeQuery]
 
 
-class MeterInlineQuery(TypedDict):
+class MeterInlineQuery(BaseQuery):
     serial_number: str
     is_active: bool
 
     class Meta:
-        model = MeterInlineModel
+        mapper = MeterInlineModel
 
 
 class MeterInlineMeterTypeQuery(MeterInlineQuery):
@@ -45,3 +47,8 @@ class MeterInlineMeterTypeQuery(MeterInlineQuery):
 
 class MeterInlineMeterTypeResourcesQuery(MeterInlineQuery):
     meter_type: Optional[MeterTypeResourcesQuery]
+
+
+"""
+Think about full join
+"""
