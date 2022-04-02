@@ -5,7 +5,7 @@ from typing import Optional, Tuple, Type, Callable, Literal, Union, Dict, Any, g
 from sqlalchemy.orm import DeclarativeMeta
 from sqlalchemy.sql import outerjoin, join, Join, ClauseElement
 from sqlalchemy.sql.expression import FromClause
-import json
+import orjson
 from .models import *
 
 
@@ -23,6 +23,25 @@ class BaseQuery(ABC):
     def __init__(self, **kwargs):
         for key, value in kwargs.items():
             setattr(self, key, value)
+
+    def dict(self) -> Dict[str, Any]:
+        result_dict: Dict[str, Any] = {}
+        full_annotations = self.get_full_annotations()
+        for field in full_annotations.keys():
+            if not self.is_query_field(field=field):
+                result_dict[field] = getattr(self, field)
+                continue
+
+            nested_query_instance = getattr(self, field)
+            result_dict[field] = nested_query_instance.dict()
+
+        return result_dict
+
+    def json(self) -> str:
+        return orjson.dumps(self.dict()).decode('utf-8')
+
+    def jsonb(self) -> bytes:
+        return orjson.dumps(self.dict())
 
     @classmethod
     def _from_row(
@@ -160,3 +179,4 @@ class MeterInlineMeterTypeQuery(MeterInlineQuery):
 
 class MeterInlineMeterTypeResourcesQuery(MeterInlineQuery):
     meter_type: Optional[MeterTypeResourcesQuery] = None
+

@@ -90,7 +90,7 @@ class Provider(BaseProvider):
         return cls._build_select(query=query)
 
     @classmethod
-    def select(
+    async def select(
         cls,
         query: Type[BaseQuery],
         session: Optional[Union[async_scoped_session, AsyncSession]] = None,
@@ -102,7 +102,11 @@ class Provider(BaseProvider):
         rows: List[Tuple[Any]] = await session.execute(select_stmt)
 
         queries: List[BaseQuery] = []
-        full_annotations = query.get_full_annotations()
         for row in rows:
-            query_instance = query()
+            queries.append(
+                query.from_row(row=row)
+            )
+
+        return queries
+
 

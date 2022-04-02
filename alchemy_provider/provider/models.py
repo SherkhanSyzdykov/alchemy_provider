@@ -7,7 +7,8 @@ from sqlalchemy import (
     BigInteger,
     Boolean,
     ForeignKey,
-    PrimaryKeyConstraint
+    PrimaryKeyConstraint,
+    UniqueConstraint
 )
 from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy.dialects.postgresql import UUID
@@ -19,8 +20,8 @@ Base = declarative_base()
 class AbstractBaseModel(Base):
     __abstract__ = True
 
-    id = Column(BigInteger, primary_key=True, autoincrement=True)
-    uuid = Column(UUID(as_uuid=True), primary_key=True, default=uuid4())
+    id = Column(BigInteger, primary_key=True, autoincrement=True, unique=True)
+    uuid = Column(UUID(as_uuid=True), primary_key=True, default=uuid4(), unique=True)
 
 
 class ResourceModel(AbstractBaseModel):
