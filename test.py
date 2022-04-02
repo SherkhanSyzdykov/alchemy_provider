@@ -4,6 +4,7 @@ from sqlalchemy import *
 from sqlalchemy.sql import Select
 from sqlalchemy.orm import DeclarativeMeta, RelationshipProperty, ColumnProperty
 from alchemy_provider.provider.examples import *
+from alchemy_provider.provider.provider_on_class import *
 
 
 

@@ -1,30 +1,18 @@
-from typing import Type, Optional, Dict
+from typing import Type, Optional, Dict, Union, List, Tuple, Any
 from sqlalchemy.sql import Select, select
 from sqlalchemy.orm import ColumnProperty, RelationshipProperty
+from sqlalchemy.ext.asyncio import async_scoped_session, AsyncSession
 from .examples import BaseQuery
 
 
 class BaseProvider:
-    @staticmethod
-    def get_full_annotations(
-        query: Type[BaseQuery]
-    ) -> Dict[str, Type]:
-        annotations = query.__annotations__
-        bases = query.__bases__
-        for base in bases:
-            if not issubclass(base, BaseQuery):
-                continue
+    _session: Union[async_scoped_session, AsyncSession]
 
-            for field, annotation in base.__annotations__.items():
-                if field not in annotations:
-                    annotations[field] = annotation
-
-        return annotations
-
-    @staticmethod
-    def is_optional(field_type: Type) -> bool:
-        available_types = getattr(field_type, '__args__', (field_type,))
-        return type(None) in available_types
+    def __init__(
+        self,
+        session: Union[async_scoped_session, AsyncSession]
+    ):
+        self._session = session
 
     @staticmethod
     def join(
@@ -32,55 +20,46 @@ class BaseProvider:
         query: Type[BaseQuery],
         query_field: str,
     ) -> Select:
-        field_type = BaseProvider.get_full_annotations(query=query)[query_field]
         mapper = query.get_mapper()
         mapper_field = getattr(mapper, query_field)
 
         select_stmt = select_stmt.join(
             mapper_field,
-            isouter=BaseProvider.is_optional(field_type),
+            isouter=query.is_optional(field=query_field),
             full=False  # TODO
         )
         return select_stmt
 
+
 class Provider(BaseProvider):
     _query: Type[BaseQuery]
-    _full_annotations: Optional[Dict[str, Type]] = None
 
     def __init__(
         self,
+        session: Union[async_scoped_session, AsyncSession],
         query: Type[BaseQuery]
     ):
+        super().__init__(session=session)
         self._query = query
 
-    def get_query(self) -> Type[BaseQuery]:
-        return self._query
+    @classmethod
+    def get_query(cls) -> Type[BaseQuery]:
+        return cls._query
 
-    def _get_full_annotations(
-        self,
-    ) -> Dict[str, Type]:
-        if self._full_annotations is not None:
-            return self._full_annotations
-
-        self._full_annotations = self.get_full_annotations(
-            query=self.get_query()
-        )
-
-        return self._full_annotations
-
+    @classmethod
     def _build_select(
-        self,
+        cls,
         query: Optional[Type[BaseQuery]] = None,
         select_stmt: Optional[Select] = None
     ) -> Select:
         if query is None:
-            query = self.get_query()
+            query = cls.get_query()
 
         if select_stmt is None:
             select_stmt = select()
 
         mapper = query.get_mapper()
-        annotations = self.get_full_annotations(query=query)
+        annotations = query.get_full_annotations()
 
         for query_field in annotations:
             mapper_field = getattr(mapper, query_field, None)
@@ -91,21 +70,39 @@ class Provider(BaseProvider):
                 select_stmt = select_stmt.add_columns(mapper_field)
 
             if isinstance(mapper_field.property, RelationshipProperty):
-                select_stmt = self.join(
+                select_stmt = cls.join(
                     select_stmt=select_stmt,
                     query=query,
                     query_field=query_field,
                 )
-                select_stmt = ''
+                select_stmt = cls._build_select(
+                    select_stmt=select_stmt,
+                    query=query.get_field_query(field=query_field)
+                )
 
         return select_stmt
 
-
-
-
-
-    @staticmethod
-    def select(
+    @classmethod
+    def get_select_stmt(
+        cls,
         query: Type[BaseQuery]
-    ) -> BaseQuery:
-        pass
+    ) -> Select:
+        return cls._build_select(query=query)
+
+    @classmethod
+    def select(
+        cls,
+        query: Type[BaseQuery],
+        session: Optional[Union[async_scoped_session, AsyncSession]] = None,
+    ) -> List[BaseQuery]:
+        if session is None:
+            session = cls._session
+
+        select_stmt = cls.get_select_stmt(query=query)
+        rows: List[Tuple[Any]] = await session.execute(select_stmt)
+
+        queries: List[BaseQuery] = []
+        full_annotations = query.get_full_annotations()
+        for row in rows:
+            query_instance = query()
+
