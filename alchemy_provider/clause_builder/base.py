@@ -4,6 +4,7 @@ from typing import Type, Union, Iterable, Optional, Any, List, Callable, Tuple, 
 from sqlalchemy import Table, Column
 from sqlalchemy.sql import Select, select, or_, and_
 from sqlalchemy.sql.expression import BinaryExpression
+from sqlalchemy.orm.util import AliasedClass
 from sqlalchemy.orm import (
     DeclarativeMeta,
     InstrumentedAttribute,
@@ -13,11 +14,14 @@ from sqlalchemy.orm import (
 
 
 class BaseClauseBuilder(ABC):
-    """
-    Build clause select statement
-    """
+    LOOKUP_STRING: str = '__'
+    AND_LOOKUP = '__and__'
+    OR_LOOKUP = '__or__'
+    ALL_OBJECTS_FILTER = '__all__'
 
-    LOOKUP_STRING = '__'
+    ASC_ORDER = 'asc'
+    DESC_ORDER = 'desc'
+
     EQUAL_OPERATOR = 'e'
     NOT_EQUAL_OPERATOR = 'ne'
     LESS_THAN_OPERATOR = 'l'
@@ -28,11 +32,6 @@ class BaseClauseBuilder(ABC):
     ILIKE_OPERATOR = 'ilike'
     IN_OPERATOR = 'in'
     NOT_IN_OPERATOR = 'not_in'
-    ALL_OBJECTS_FILTER = '__all__'
-    AND_LOOKUP = '__and__'
-    OR_LOOKUP = '__or__'
-    ASC_ORDER = 'asc'
-    DESC_ORDER = 'desc'
 
     LOOKUP_OPERATORS = MappingProxyType({
         EQUAL_OPERATOR:
@@ -57,26 +56,17 @@ class BaseClauseBuilder(ABC):
             lambda _column, _value: _column.not_in(_value),
     })
 
-    _table: Optional[Type[Table]] = None
     _mapper: DeclarativeMeta
+    _table: Optional[Table] = None
+    _aliased: Optional[Tuple[AliasedClass]]
 
     def __init__(
         self,
-        mapper: DeclarativeMeta
+        mapper: DeclarativeMeta,
+        table: Optional[Table] = None,
     ):
         self.mapper = mapper
-        self.table = mapper.__table__
-
-    @property
-    def table(self) -> Type[Table]:
-        return self._table
-
-    @table.setter
-    def table(self, value: Type[Table]):
-        if type(value) is not Table:
-            raise  # TODO
-
-        self._table = value
+        self.table = table
 
     @property
     def mapper(self) -> DeclarativeMeta:
@@ -89,15 +79,33 @@ class BaseClauseBuilder(ABC):
         self._mapper = value
 
     @property
+    def table(self) -> Optional[Table]:
+        return self._table
+
+    @table.setter
+    def table(self, value: Optional[Table] = None):
+        if not isinstance(value, Table):
+            raise  # TODO
+        self._table = value
+
+    @property
     def select_stmt(self) -> Select:
         return select(self.mapper)
+
+    @classmethod
+    def is_or_lookup(cls, lookup: str) -> bool:
+        return lookup == cls.OR_LOOKUP
+
+    @classmethod
+    def is_and_lookup(cls, lookup: str) -> bool:
+        return lookup == cls.AND_LOOKUP
 
     @staticmethod
     def get_related_mapper(
         mapper: DeclarativeMeta,
-        relationship_name: str,
+        relation_name: str
     ) -> DeclarativeMeta:
-        relationship = getattr(mapper, relationship_name, None)
+        relationship = getattr(mapper, relation_name, None)
         if relationship is None:
             raise  # TODO
 
@@ -109,13 +117,19 @@ class BaseClauseBuilder(ABC):
     @staticmethod
     def is_related_field(
         mapper: DeclarativeMeta,
-        relationship_name: str
+        relation_name: str
     ) -> bool:
-        related_field = getattr(mapper, relationship_name, None)
+        related_field = getattr(mapper, relation_name, None)
         if related_field is None:
             return False
 
         return isinstance(related_field.property, RelationshipProperty)
+
+
+class ClauseBuilder(BaseClauseBuilder):
+    """
+    Build clause select statement
+    """
 
     def _remove_lookup_key(
         self,
@@ -449,6 +463,7 @@ class BaseClauseBuilder(ABC):
         mapper: DeclarativeMeta,
         select_stmt: Select,
     ) -> Select:
+        ...
 
     def _bind_order_by(
         self,
@@ -459,7 +474,7 @@ class BaseClauseBuilder(ABC):
         if not isinstance(order_by, Iterable):
             if self._is_desc_order(order_by=order_by):
                 return self._bind_desc_order(
-                    order_by=
+                    order_by=''
                 )
 
     def _build_group_by(

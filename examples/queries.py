@@ -82,3 +82,6 @@ class CustomerQuery(BaseQuery):
 class MeterInlineCustomerQuery(MeterInlineQuery):
     created_by: CustomerQuery
     updated_by: Optional[CustomerQuery]
+
+#
+# classes to Join, Where, GroupBy, OrderBy
