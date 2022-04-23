@@ -6,30 +6,23 @@ from alchemy_provider.query import BaseQuery
 from .mappers import *
 
 
+class SecretStr(str):
+    pass
+
+
 class MeterTypeQuery(BaseQuery):
     name: str
     description: str
 
     class Meta:
-        mapper = MeterTypeModel
-
-    # @property
-    # def name(self) -> int:
-    #     try:
-    #         return int(self.__name)
-    #     except:
-    #         return 0
-    #
-    # @name.setter
-    # def name(self, value: Any):
-    #     self.__name = value
+        mapper = MeterTypeMapper
 
 
 class ResourceQuery(BaseQuery):
     name: str
 
     class Meta:
-        mapper = ResourceModel
+        mapper = ResourceMapper
 
 
 class MeterTypeResourcesQuery(MeterTypeQuery):
@@ -45,14 +38,14 @@ class MeterInlineQuery(BaseQuery):
     is_active: bool
 
     class Meta:
-        mapper = MeterInlineModel
+        mapper = MeterInlineMapper
 
 
 class MeterInlineMeterTypeQuery(MeterInlineQuery):
     meter_type: Optional[MeterTypeQuery] = Join(
-        MeterInlineModel,
-        MeterTypeModel,
-        MeterInlineModel.meter_type_id == MeterTypeModel.id,
+        MeterInlineMapper,
+        MeterTypeMapper,
+        MeterInlineMapper.meter_type_id == MeterTypeMapper.id,
         isouter=True,
         full=False
     )
@@ -73,15 +66,18 @@ class MeterInlineMeterTypeResourcesQuery(MeterInlineQuery):
 #     items: List[MeterInlineQuery] = []
 
 
-class CustomerQuery(BaseQuery):
-    username: str
-    phone_number: str
-    password: str
-
-
 class MeterInlineCustomerQuery(MeterInlineQuery):
     created_by: CustomerQuery
     updated_by: Optional[CustomerQuery]
 
-#
-# classes to Join, Where, GroupBy, OrderBy
+
+class CustomerQuery(BaseQuery):
+    username: str
+    phone_number: str
+    password: SecretStr
+    first_name: Optional[str]
+    last_name: Optional[str]
+    description: Optional[str]
+
+    class Meta:
+        mapper = CustomerMapper

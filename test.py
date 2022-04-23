@@ -1,19 +1,23 @@
-import asyncio
-from alchemy_provider.query_provider import *
-from examples.queries import *
-from pydantic import BaseModel
+from dataclasses import dataclass
+from typing import Optional, Iterable, Sequence, List, Tuple, get_type_hints, get_args, get_origin
 
 
-async def main():
+class SecretStr(str):
     pass
-    # stmt1 = Provider.get_select_stmt(MeterInlineMeterTypeQuery)
-    # stmt2 = Provider.get_select_stmt(MeterInlineMeterTypeResourcesQuery)
-    #
-    # print()
-    # print(stmt1)
-    # print()
-    # print(stmt2)
-    # print()
 
 
-asyncio.run(main())
+class Base:
+    pass
+
+
+class Customer(Base):
+    name: str
+    phone_number: str
+    password: SecretStr
+    description: Optional[str]
+
+
+class CustomerList(Base):
+    items: List[Customer] = list
+
+

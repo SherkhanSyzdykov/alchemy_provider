@@ -10,8 +10,6 @@ class BaseQueryMeta(ABCMeta):
 
 
 class BaseQuery(metaclass=BaseQueryMeta):
-    __full_annotations = None
-
     class Meta(ABC):
         mapper: DeclarativeMeta
 

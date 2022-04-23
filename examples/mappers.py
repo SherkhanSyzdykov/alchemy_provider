@@ -7,8 +7,7 @@ from sqlalchemy import (
     BigInteger,
     Boolean,
     ForeignKey,
-    PrimaryKeyConstraint,
-    Table
+    PrimaryKeyConstraint
 )
 from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy.dialects.postgresql import UUID
@@ -17,101 +16,73 @@ from sqlalchemy.dialects.postgresql import UUID
 Base = declarative_base()
 
 
-class AbstractBaseModel(Base):
+class AbstractBaseMapper(Base):
     __abstract__ = True
 
     id = Column(BigInteger, primary_key=True, autoincrement=True, unique=True)
     uuid = Column(UUID(as_uuid=True), primary_key=True, default=uuid4(), unique=True)
 
 
-class CustomerModel(AbstractBaseModel):
+class CustomerMapper(AbstractBaseMapper):
     __tablename__ = 'customer'
 
     username = Column(String(250), unique=True, nullable=False)
     phone_number = Column(String(20), unique=True, nullable=False)
     password = Column(String(250), nullable=False)
+    first_name = Column(String(250))
+    last_name = Column(String(250))
+    description = Column(String(250))
 
     created_meter_inlines = relationship(
-        'MeterInlineModel', back_populates='created_by',
-        foreign_keys='MeterInlineModel.created_by_id'
+        'MeterInlineMapper', back_populates='created_by',
+        foreign_keys='MeterInlineMapper.created_by_id'
     )
     updated_meter_inlines = relationship(
-        'MeterInlineModel', back_populates='updated_by',
-        foreign_keys='MeterInlineModel.updated_by_id'
+        'MeterInlineMapper', back_populates='updated_by',
+        foreign_keys='MeterInlineMapper.updated_by_id'
     )
 
 
-# class MeterTypeResourceAssocModel(Base):
-#     __tablename__ = 'meter_type_resource_assoc'
-#
-#     meter_type_id = Column(
-#         BigInteger,
-#         ForeignKey(
-#             f'meter_type.id',
-#             ondelete='CASCADE',
-#         ),
-#         nullable=False,
-#         index=True
-#     )
-#     meter_type = relationship('MeterTypeModel', back_populates='resources')
-#
-#     resource_id = Column(
-#         BigInteger,
-#         ForeignKey(
-#             f'resource.id',
-#             ondelete='CASCADE',
-#         ),
-#         nullable=False,
-#         index=True
-#     )
-#     resource = relationship('ResourceModel', back_populates='meter_types')
-#
-#     __table_args__ = PrimaryKeyConstraint(
-#         'meter_type_id', 'resource_id',
-#         name='meter_type_resource_pk_constraint'
-#     ),
+class MeterTypeResourceMapper(Base):
+    __tablename__ = 'meter_type_resource_m2m'
+
+    meter_type_id = Column(BigInteger, ForeignKey('meter_type.id', ondelete='CASCADE'), index=True, nullable=False)
+    resource_id = Column(BigInteger, ForeignKey('resource.id', ondelete='CASCADE'), index=True, nullable=False)
+
+    __table_args__ = PrimaryKeyConstraint(
+        meter_type_id, resource_id,
+        'meter_type_id_resource_id_primary_key_constraint'
+    )
 
 
-meter_type_resource_assoc_table = Table(
-    'meter_type_resource_assoc',
-    Base.metadata,
-    Column('resource_id', BigInteger,
-           ForeignKey('resource.id', ondelete='CASCADE'),
-           index=True, nullable=False),
-    Column('meter_type_id', BigInteger,
-           ForeignKey('meter_type.id', ondelete='CASCADE'),
-           index=True, nullable=False)
-)
-
-
-class ResourceModel(AbstractBaseModel):
+class ResourceMapper(AbstractBaseMapper):
     __tablename__ = 'resource'
 
     name = Column(String(255), nullable=False, unique=True)
     has_rate = Column(Boolean, nullable=False, default=True)
 
     meter_types = relationship(
-        'MeterTypeModel',
-        secondary=meter_type_resource_assoc_table,
+        'MeterTypeMapper',
+        secondary=MeterTypeResourceMapper.__table__,
         back_populates='resources'
     )
 
 
-class MeterTypeModel(AbstractBaseModel):
+class MeterTypeMapper(AbstractBaseMapper):
     __tablename__ = 'meter_type'
 
     name = Column(String(255), nullable=False, unique=True)
     description = Column(String)
 
-    meters = relationship('MeterInlineModel', back_populates='meter_type')
+    meters = relationship('MeterInlineMapper', back_populates='meter_type')
     resources = relationship(
-        'ResourceModel',
-        secondary=meter_type_resource_assoc_table,
+        'ResourceMapper',
+        secondary=MeterTypeResourceMapper.__table__,
         back_populates='meter_types'
     )
 
 
-class MeterInlineModel(AbstractBaseModel):
+class MeterInlineMapper(AbstractBaseMapper):
     __tablename__ = 'meter_inline'
 
     serial_number = Column(String(255), nullable=False, index=True)
@@ -124,37 +95,37 @@ class MeterInlineModel(AbstractBaseModel):
             ondelete='CASCADE'
         ),
     )
-    parent = relationship('MeterInlineModel', lazy='joined')
+    parent = relationship('MeterInlineMapper', lazy='joined')
 
     meter_type_id = Column(
         BigInteger,
         ForeignKey(
-            f'{MeterTypeModel.__tablename__}.{MeterTypeModel.id.name}',
+            f'{MeterTypeMapper.__tablename__}.{MeterTypeMapper.id.name}',
             ondelete='CASCADE'
         ),
         nullable=False,
     )
     meter_type = relationship(
-        'MeterTypeModel',
+        'MeterTypeMapper',
         back_populates='meters',
         # lazy='joined'
     )
 
     created_by_id = Column(
         BigInteger,
-        ForeignKey(f'{CustomerModel.__tablename__}.id'),
+        ForeignKey(f'{CustomerMapper.__tablename__}.id'),
         nullable=False
     )
     updated_by_id = Column(
         BigInteger,
-        ForeignKey(f'{CustomerModel.__tablename__}.id')
+        ForeignKey(f'{CustomerMapper.__tablename__}.id')
     )
     created_by = relationship(
-        'CustomerModel', foreign_keys=[created_by_id],
+        'CustomerMapper', foreign_keys=[created_by_id],
         back_populates='created_meter_inlines'
     )
     updated_by = relationship(
-        'CustomerModel',
+        'CustomerMapper',
         foreign_keys=[updated_by_id],
         back_populates='updated_meter_inlines'
     )
