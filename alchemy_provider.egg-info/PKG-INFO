@@ -1,0 +1,31 @@
+Metadata-Version: 2.1
+Name: alchemy-provider
+Version: 0.0.5
+Summary: Dynamic query builder based on SQLAlchemy Core and ORM
+Home-page: https://github.com/SherkhanSyzdykov/alchemy_provider
+Author: Sherkhan Syzdykov
+Author-email: syzdykovsherkhan@gmail.com
+License: UNKNOWN
+Project-URL: Bug Tracker, https://github.com/SherkhanSyzdykov/alchemy_provider/issues
+Project-URL: Discussions, https://github.com/SherkhanSyzdykov/alchemy_provider/discussions
+Platform: UNKNOWN
+Classifier: Typing :: Typed
+Classifier: Topic :: Internet
+Classifier: Topic :: Communications
+Classifier: Framework :: AsyncIO
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3 :: Only
+Classifier: Programming Language :: Python :: 3.6
+Classifier: Programming Language :: Python :: 3.7
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.6
+Description-Content-Type: text/markdown
+License-File: LICENSE
+
+Dynamic query build based on SQLAlchemy Core and ORM
+
+

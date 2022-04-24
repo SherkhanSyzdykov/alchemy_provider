@@ -19,8 +19,8 @@ Base = declarative_base()
 class AbstractBaseMapper(Base):
     __abstract__ = True
 
-    id = Column(BigInteger, primary_key=True, autoincrement=True, unique=True)
-    uuid = Column(UUID(as_uuid=True), primary_key=True, default=uuid4(), unique=True)
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    uuid = Column(UUID(as_uuid=True), primary_key=True, default=uuid4())
 
 
 class CustomerMapper(AbstractBaseMapper):
@@ -32,6 +32,13 @@ class CustomerMapper(AbstractBaseMapper):
     first_name = Column(String(250))
     last_name = Column(String(250))
     description = Column(String(250))
+
+    parent_id = Column(
+        BigInteger,
+        ForeignKey(f'{__tablename__}.id', ondelete='SET NULL'),
+        index=True
+    )
+    parent = relationship('CustomerMapper')
 
     created_meter_inlines = relationship(
         'MeterInlineMapper', back_populates='created_by',
@@ -46,8 +53,16 @@ class CustomerMapper(AbstractBaseMapper):
 class MeterTypeResourceMapper(Base):
     __tablename__ = 'meter_type_resource_m2m'
 
-    meter_type_id = Column(BigInteger, ForeignKey('meter_type.id', ondelete='CASCADE'), index=True, nullable=False)
-    resource_id = Column(BigInteger, ForeignKey('resource.id', ondelete='CASCADE'), index=True, nullable=False)
+    meter_type_id = Column(
+        BigInteger,
+        ForeignKey('meter_type.id', ondelete='CASCADE'),
+        index=True, nullable=False
+    )
+    resource_id = Column(
+        BigInteger,
+        ForeignKey('resource.id', ondelete='CASCADE'),
+        index=True, nullable=False
+    )
 
     __table_args__ = PrimaryKeyConstraint(
         meter_type_id, resource_id,

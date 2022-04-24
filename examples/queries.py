@@ -7,7 +7,19 @@ from .mappers import *
 
 
 class SecretStr(str):
-    pass
+    def __init__(self, value: str):
+        super().__init__()
+        self.__secret_value = value
+
+    @property
+    def secret_value(self) -> str:
+        return self.__secret_value
+
+    def __str__(self):
+        return '*****'
+
+    def __repr__(self):
+        return self.__class__.__name__ + '*****'
 
 
 class MeterTypeQuery(BaseQuery):
@@ -72,12 +84,17 @@ class MeterInlineCustomerQuery(MeterInlineQuery):
 
 
 class CustomerQuery(BaseQuery):
+    id: int
+    uuid: UUID
     username: str
     phone_number: str
     password: SecretStr
     first_name: Optional[str]
     last_name: Optional[str]
     description: Optional[str]
+
+    parent_id: Optional[int]
+    parent: Optional[CustomerQuery]
 
     class Meta:
         mapper = CustomerMapper
