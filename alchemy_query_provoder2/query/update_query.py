@@ -1,13 +1,14 @@
 from __future__ import annotations
 from abc import ABC
-from typing import Any, Dict, Sequence, Union, Optional
+from typing import Any, Dict
+from .base import BaseQuery
 from .from_row import FromRowQuery
 from .join_query import JoinQuery
 
 
-class UpdateQuery(ABC, FromRowQuery, JoinQuery):
+class UpdateQuery(ABC, FromRowQuery, JoinQuery, BaseQuery):
     filters: Dict[str, Any] = dict()
-    values: Union[Dict[str, Any], Sequence[Dict[str, Any]]] = dict()
+    values: Dict[str, Any] = dict()
 
     def set_filters(
         self,
@@ -22,13 +23,8 @@ class UpdateQuery(ABC, FromRowQuery, JoinQuery):
 
     def set_values(
         self,
-        values: Optional[Sequence[Dict[str, Any]]] = None,
         **kwargs,
     ) -> UpdateQuery:
-        if values is not None:
-            self.values = values
-            return self
-
         self.values = dict()
         for item, value in kwargs.items():
             self.values[item] = value

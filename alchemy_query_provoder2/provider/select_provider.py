@@ -8,11 +8,19 @@ from ..query.select_query import SelectQuery
 from ..utils import get_related_mapper
 from .base import BaseProvider
 from .join_provider import JoinProvider
+from .pagination_provider import PaginationProvider
+from .sorting_provider import SortingProvider
 
 
-class SelectProvider(ABC, JoinProvider, BaseProvider):
+class SelectProvider(
+    ABC,
+    JoinProvider,
+    PaginationProvider,
+    SortingProvider,
+    BaseProvider
+):
     @abstractmethod
-    def select(self):
+    async def select(self, *args, **kwargs):
         pass
 
     def make_select_stmt(
@@ -26,6 +34,17 @@ class SelectProvider(ABC, JoinProvider, BaseProvider):
             select_stmt=select_stmt,
             query=query,
             mapper=mapper
+        )
+
+        select_stmt = self.bind_pagination(
+            query=query,
+            select_stmt=select_stmt
+        )
+
+        select_stmt = self.bind_sorting(
+            query=query,
+            mapper=mapper,
+            select_stmt=select_stmt,
         )
 
         if query.is_instance():

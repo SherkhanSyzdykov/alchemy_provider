@@ -151,25 +151,7 @@ class Device(AbstractBaseMapper):
         back_populates='devices'
     )
 
-#
-class DeviceUpdateQuery(UpdateQuery):
-    pass
 
+from sqlalchemy import update
 
-class DeviceSelectQuery(SelectQuery):
-    uuid: UUID
-    eui: str
-
-
-device_select_query = DeviceSelectQuery(uuid__ne=None, eui__ilike='%DFDF%', id__g=1)
-
-
-device_update_query = DeviceUpdateQuery().set_filters(
-    id=1,
-    eui__ilike='%some_eui%',
-    device_type__id__g=4,
-).set_values(
-    device_type_id=3
-)
-
-
+update_stmt = update(Device)

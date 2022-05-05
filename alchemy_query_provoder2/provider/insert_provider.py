@@ -1,4 +1,4 @@
-from abc import ABC
+from abc import ABC, abstractmethod
 from typing import Any, Optional, List, Mapping, Sequence
 from sqlalchemy.orm import DeclarativeMeta, ColumnProperty
 from sqlalchemy.sql import insert, Insert
@@ -7,6 +7,14 @@ from .base import BaseProvider
 
 
 class InsertProvider(ABC, BaseProvider):
+    @abstractmethod
+    async def insert(self, *args, **kwargs):
+        pass
+
+    @abstractmethod
+    async def bulk_insert(self, *args, **kwargs):
+        pass
+
     def make_insert_stmt(
         self,
         query: InsertQuery,
