@@ -26,14 +26,14 @@ class MeterTypeQuery(BaseQuery):
     name: str
     description: str
 
-    class Meta:
+    class AlchemyMeta:
         mapper = MeterTypeMapper
 
 
 class ResourceQuery(BaseQuery):
     name: str
 
-    class Meta:
+    class AlchemyMeta:
         mapper = ResourceMapper
 
 
@@ -49,7 +49,7 @@ class MeterInlineQuery(BaseQuery):
     serial_number: str
     is_active: bool
 
-    class Meta:
+    class AlchemyMeta:
         mapper = MeterInlineMapper
 
 
@@ -96,5 +96,5 @@ class CustomerQuery(BaseQuery):
     parent_id: Optional[int]
     parent: Optional[CustomerQuery]
 
-    class Meta:
+    class AlchemyMeta:
         mapper = CustomerMapper

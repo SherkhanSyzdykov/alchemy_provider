@@ -9,15 +9,6 @@ class BaseQueryMeta(ABCMeta):
     pass
 
 
-class QueryWithValidation(metaclass=BaseQueryMeta):
-    def __init__(self, *args, **kwargs):
-        pass
-
-
-
-
-
-
 class BaseQuery(metaclass=BaseQueryMeta):
     class Meta(ABC):
         mapper: DeclarativeMeta
