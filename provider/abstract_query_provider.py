@@ -57,7 +57,8 @@ class AbstractQueryProvider(
         returning: bool = True,
     ) -> Optional[Sequence[AbstractQuery]]:
         return await self._bulk_insert(
-            queries=tuple(self._query_type(**values) for values in values_seq),
+            query=self._query_type,
+            values_seq=values_seq,
             mapper=self._mapper,
             returning=returning
         )
@@ -79,7 +80,7 @@ class AbstractQueryProvider(
         **kwargs
     ):
         await self._delete(
-            query=self._query_type(**kwargs),
+            query=self._query_type.set_filters(**kwargs),
             mapper=self._mapper
         )
 

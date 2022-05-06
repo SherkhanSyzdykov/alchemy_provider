@@ -1,10 +1,12 @@
 from __future__ import annotations
 from abc import abstractmethod
-from typing import Union, Type, List
+from typing import Union, Type, List, Optional
 from sqlalchemy import select
 from sqlalchemy.sql import Select, Insert
-from sqlalchemy.orm import DeclarativeMeta, ColumnProperty, RelationshipProperty
+from sqlalchemy.orm import DeclarativeMeta, ColumnProperty, \
+    RelationshipProperty, InstrumentedAttribute
 from query.base import BaseQuery
+from query.from_row import FIELD_NAME_SEPARATOR
 from query.select_query import SelectQuery
 from utils import get_related_mapper
 from .base import BaseProvider
@@ -65,7 +67,9 @@ class SelectProvider(
         Will be added in future version
 
         with inserted as (
-            insert into test2(name, description, test_id) values
+            insert intoROW_MAP_FORMAT.format(
+                        query.get_name(), field_name
+                    ) test2(name, description, test_id) values
             ('test2_name1', 'test2_description1', 1)
             returning *
         )
@@ -74,11 +78,22 @@ class SelectProvider(
         """
         raise NotImplementedError
 
+    def _make_column_label(
+        self,
+        mapper_field: InstrumentedAttribute,
+        label_prefix: Optional[str] = None,
+    ) -> str:
+        if label_prefix is None:
+            return mapper_field.name
+
+        return label_prefix + FIELD_NAME_SEPARATOR + mapper_field.name
+
     def _make_select_stmt(
         self,
         select_stmt: Select,
-        query: Type[SelectQuery],
+        query: Union[Type[SelectQuery], SelectQuery],
         mapper: DeclarativeMeta,
+        label_prefix: Optional[str] = None,
     ) -> Select:
         type_hints = query.get_type_hints()
 
@@ -88,7 +103,14 @@ class SelectProvider(
                 continue
 
             if isinstance(mapper_field.property, ColumnProperty):
-                select_stmt = select_stmt.add_columns(mapper_field)
+                select_stmt = select_stmt.add_columns(
+                    mapper_field.label(
+                        self._make_column_label(
+                            mapper_field=mapper_field,
+                            label_prefix=label_prefix
+                        )
+                    )
+                )
                 continue
 
             if isinstance(mapper_field.property, RelationshipProperty):
@@ -104,7 +126,8 @@ class SelectProvider(
                     mapper=get_related_mapper(
                         mapper=mapper,
                         field_name=field_name,
-                    )
+                    ),
+                    label_prefix=field_name
                 )
 
         return select_stmt
@@ -121,14 +144,4 @@ class SelectProvider(
 
         scalar_result = await self._session.execute(select_stmt)
 
-        import pdb
-        pdb.set_trace(
-
-        )
-        queries = []
-        for row in scalar_result:
-            queries.append(
-                query.from_row(row=row)
-            )
-
-        return queries
+        return query.from_selected_rows(rows=scalar_result.all())

@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Any, Optional, List, Mapping, Sequence
+from typing import Any, Optional, List, Mapping, Sequence, Type, Union, Dict
 from sqlalchemy.orm import DeclarativeMeta, ColumnProperty
 from sqlalchemy.sql import insert, Insert
 from query.insert_query import InsertQuery
@@ -26,6 +26,7 @@ class InsertProvider(BaseProvider):
         insertable_values = self.__make_insertable_values(
             query=query,
             mapper=mapper,
+            values=query.dict,
         )
 
         insert_stmt = insert_stmt.values(**insertable_values)
@@ -37,23 +38,25 @@ class InsertProvider(BaseProvider):
 
     def make_bulk_insert_stmt(
         self,
-        queries: Sequence[InsertQuery],
+        query: Union[InsertQuery, Type[InsertQuery]],
+        values_seq: Sequence[Dict[str, Any]],
         mapper: DeclarativeMeta,
         returning: bool = True,
     ) -> Insert:
         """
         """
-        values_list: List[Mapping[str, Any]] = []
+        insertable_values_seq: List[Mapping[str, Any]] = []
 
-        for query in queries:
+        for values in values_seq:
             insertable_values = self.__make_insertable_values(
                 query=query,
-                mapper=mapper
+                mapper=mapper,
+                values=values
             )
-            values_list.append(insertable_values)
+            insertable_values_seq.append(insertable_values)
 
         insert_stmt = insert(mapper)
-        insert_stmt = insert_stmt.values(values_list)
+        insert_stmt = insert_stmt.values(insertable_values_seq)
 
         if returning:
             insert_stmt = insert_stmt.returning(mapper)
@@ -78,11 +81,12 @@ class InsertProvider(BaseProvider):
         scalar_result = await self._session.execute(insert_stmt)
 
         if returning:
-            return query.from_row(scalar_result.first())
+            return query.from_returning_mapper(scalar_result.first())
 
     async def _bulk_insert(
         self,
-        queries: Sequence[InsertQuery],
+        query: Union[InsertQuery, Type[InsertQuery]],
+        values_seq: Sequence[Dict[str, Any]],
         mapper: DeclarativeMeta,
         returning: bool = True,
     ) -> Optional[Sequence[InsertQuery]]:
@@ -90,45 +94,41 @@ class InsertProvider(BaseProvider):
         If returning is True, returns iterable object that contains
         InsertQuery
         """
-        if not queries:
+        if not values_seq:
             return
 
         insert_stmt = self.make_bulk_insert_stmt(
-            queries=queries,
+            query=query,
+            values_seq=values_seq,
             mapper=mapper,
             returning=returning
         )
 
         scalar_result = await self._session.execute(insert_stmt)
 
-        if not returning:
-            return
-
-        query = queries[0]
-        inserted_queries = list()
-
-        for row in scalar_result:
-            inserted_query = query.from_row(row)
-            inserted_queries.append(inserted_query)
-
-        return inserted_queries
+        if returning:
+            return query.from_returning_mappers(scalar_result.all())
 
     def __make_insertable_values(
         self,
         query: InsertQuery,
         mapper: DeclarativeMeta,
+        values: Dict[str, Any],
     ) -> Mapping[str, Any]:
-        values = dict()
+        insertable_values = dict()
 
-        for field_name, value in query.to_dict():
+        for field_name, value in values.items():
+            if field_name not in query.get_type_hints():
+                continue
+
             mapper_field = getattr(mapper, field_name, None)
 
             if mapper_field is None:
                 continue
 
-            if mapper_field.property is not ColumnProperty:
+            if not isinstance(mapper_field.property, ColumnProperty):
                 continue
 
-            values[field_name] = value
+            insertable_values[field_name] = value
 
-        return values
+        return insertable_values

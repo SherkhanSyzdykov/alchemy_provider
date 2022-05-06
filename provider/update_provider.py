@@ -29,6 +29,11 @@ class UpdateProvider(JoinProvider, BaseProvider):
             query=query,
             mapper=mapper,
         )
+        if not updatable_values:
+            raise ValueError(
+                'Attr values not empty'
+            )
+
         update_stmt = update_stmt.values(**updatable_values)
 
         if returning:
@@ -58,17 +63,15 @@ class UpdateProvider(JoinProvider, BaseProvider):
             returning=returning
         )
 
+        # import pdb
+        # pdb.set_trace()
+
         scalar_result = await self._session.execute(update_stmt)
 
         if not returning:
             return
 
-        updated_queries = list()
-        for row in scalar_result:
-            updated_query = query.from_row(row)
-            updated_queries.append(updated_query)
-
-        return updated_queries
+        return query.from_returning_mappers(scalar_result.all())
 
     def __make_updatable_values(
         self,
@@ -76,14 +79,15 @@ class UpdateProvider(JoinProvider, BaseProvider):
         mapper: DeclarativeMeta
     ) -> Dict[str, Any]:
         updatable_values = dict()
-        for item, value in query.get_values().items():
-            mapper_field = getattr(mapper, item, None)
+
+        for field_name, value in query.get_values().items():
+            mapper_field = getattr(mapper, field_name, None)
             if mapper_field is None:
                 continue
 
-            if mapper_field.property is not ColumnProperty:
+            if not isinstance(mapper_field.property, ColumnProperty):
                 continue
 
-            updatable_values[item] = value
+            updatable_values[field_name] = value
 
         return updatable_values

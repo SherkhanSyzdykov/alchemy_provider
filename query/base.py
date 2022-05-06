@@ -41,7 +41,8 @@ class BaseQuery:
 
     @cls_or_ins
     def is_class(cls_or_ins) -> bool:
-        return issubclass(cls_or_ins, BaseQuery)
+        return not isinstance(cls_or_ins, BaseQuery) \
+               and issubclass(cls_or_ins, BaseQuery)
 
     @cls_or_ins
     def is_instance(cls_or_ins) -> bool:
@@ -67,6 +68,10 @@ class BaseQuery:
             return cls_or_ins.__class__
 
         return cls_or_ins
+
+    @classmethod
+    def get_name(cls) -> str:
+        return cls.__name__
 
     @classmethod
     def get_type_hints(cls):
@@ -120,7 +125,17 @@ class BaseQuery:
 
     @property
     def dict(self) -> Dict[str, Any]:
-        return self.__dict__
+        mapping = dict()
+        for field, value in self.__dict__.items():
+            if field.startswith('_'):
+                continue
+
+            if isinstance(value, BaseQuery):
+                mapping[field] = value.dict
+
+            mapping[field] = value
+
+        return mapping
 
     def _set_attrs(self, **kwargs):
         for field, value in kwargs.items():

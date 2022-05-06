@@ -5,7 +5,6 @@ from datetime import datetime
 from uuid import UUID
 from typing import Optional, Union
 from pydantic import BaseModel
-from geoalchemy2.elements import WKBElement
 # from geoalchemy2.shape import to_shape
 from sqlalchemy.ext.asyncio import AsyncSession, async_scoped_session, \
     create_async_engine
@@ -51,7 +50,7 @@ class DeviceDomain(BaseModel, Device):
     pass
 
 
-def geom_setter(value: WKBElement) -> Geom:
+def geom_setter(value) -> Geom:
     import pdb
     pdb.set_trace()
     latitude = None
@@ -86,12 +85,6 @@ class DeviceQuery(AbstractQuery, Device):
 # device_query2 = DeviceQuery(id=1, eui='asdfsdf', geo_data='SOme_geo_data')
 
 
-engine = create_async_engine(
-    f'postgresql+asyncpg://developer:zie7ua6Ohleo9poh8hig3iedooyaem6ielaibi9aitahGhoh7saogeicohkaepheiHaeCh3aingeghahRe2lae4oom4Nee8eidies0Aesae0pe7QuohGheesh0eitheu@35.228.147.44:5432/development',
-    # echo=True
-)
-
-
 class DeviceClauseBinder(AbstractClauseBinder):
     _mapper = DeviceMapper
 
@@ -116,18 +109,45 @@ class DeviceProvider(AbstractQueryProvider):
 
 async def main():
     device_provider = DeviceProvider()
-    result1 = device_provider.make_select_stmt(id__g=1)
-    result2 = device_provider.make_select_stmt(
+    # result1 = await device_provider.select(id__g=1)
+    # result2 = await device_provider.select(
+    #     id__g=1,
+    #     description__ilike='%sdfsdfe%',
+    #     device_type__id__g=1,
+    #     device_type={
+    #         'name__ilike': '%some_device_type_name%',
+    #         # 'uuid': 'device_type_uuid'
+    #     },
+    #     # uuid='asdfsdf',
+    # )
+    # result1 = await device_provider.insert(
+    #     description='some_description',
+    #     eui='asdfa1'
+    # )
+    #
+    # result2 = await device_provider.bulk_insert(
+    #     [
+    #         dict(
+    #             description='some_description',
+    #             eui='asdfa2'
+    #         ),
+    #         dict(
+    #             description='some_description',
+    #             eui='asdfa2'
+    #         )
+    #     ]
+    # )
+
+    await device_provider.delete(
         id__g=1,
-        description__ilike='%sdfsdfe%',
-        device_type__id__g=1,
-        device_type={
-            'name__ilike': '%some_device_type_name%',
-            'uuid': 'device_type_uuid'
-        },
-        uuid='asdfsdf',
+        # description__ilike='%asdfsd%'
     )
-    return result1, result2
+
+
+    await device_provider._session.rollback()
+    await device_provider._session.close()
+
+    return
 
 
 result = asyncio.run(main())
