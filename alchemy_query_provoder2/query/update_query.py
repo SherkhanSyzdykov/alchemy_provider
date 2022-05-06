@@ -1,32 +1,25 @@
 from __future__ import annotations
-from abc import ABC
 from typing import Any, Dict
+from copy import deepcopy
+from utils import cls_or_ins
 from .base import BaseQuery
 from .from_row import FromRowQuery
 from .join_query import JoinQuery
 
 
-class UpdateQuery(ABC, FromRowQuery, JoinQuery, BaseQuery):
-    filters: Dict[str, Any] = dict()
-    values: Dict[str, Any] = dict()
+class UpdateQuery(FromRowQuery, JoinQuery, BaseQuery):
+    _values: Dict[str, Any] = dict()
 
-    def set_filters(
-        self,
-        **kwargs
-    ) -> UpdateQuery:
-        self.filters = dict()
+    @classmethod
+    def get_values(cls) -> Dict[str, Any]:
+        return deepcopy(cls._values)
 
-        for item, value in kwargs.items():
-            self.filters[item] = value
+    @cls_or_ins
+    def set_values(cls_or_ins, **kwargs) -> BaseQuery:
+        self = cls_or_ins
+        if cls_or_ins.is_class():
+            self = cls_or_ins()
 
-        return self
-
-    def set_values(
-        self,
-        **kwargs,
-    ) -> UpdateQuery:
-        self.values = dict()
-        for item, value in kwargs.items():
-            self.values[item] = value
+        self._set_values(self._values, **kwargs)
 
         return self

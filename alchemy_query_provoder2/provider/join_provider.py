@@ -1,12 +1,11 @@
-from abc import ABC
 from typing import Union, Type
 from sqlalchemy.orm import DeclarativeMeta
 from sqlalchemy.sql import Select, Insert, Update, Delete
-from ..query.join_query import JoinQuery
+from query.join_query import JoinQuery
 from .base import BaseProvider
 
 
-class JoinProvider(ABC, BaseProvider):
+class JoinProvider(BaseProvider):
     def _join(
         self,
         field_name: str,
@@ -17,10 +16,8 @@ class JoinProvider(ABC, BaseProvider):
         mapper_field = getattr(mapper, field_name)
         join_strategy = query.get_join_strategy(field_name=field_name)
 
-        stmt.join(
+        return stmt.join(
             mapper_field,
             isouter=join_strategy.is_outer,
             full=join_strategy.is_full
         )
-
-        return stmt

@@ -1,12 +1,11 @@
-from abc import ABC
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Optional, Union
 from sqlalchemy.orm import DeclarativeMeta
-from sqlalchemy.sql import Select
+from sqlalchemy.sql import Select, Insert, Update, Delete
 from sqlalchemy.sql.expression import BinaryExpression
 from .base import BaseClauseBinder
 
 
-class SelfMethodBinder(ABC, BaseClauseBinder):
+class SelfMethodBinder(BaseClauseBinder):
     def _is_self_method(
         self,
         lookup: str,
@@ -35,12 +34,12 @@ class SelfMethodBinder(ABC, BaseClauseBinder):
         lookup: str,
         value: Any,
         mapper: DeclarativeMeta,
-        select_stmt: Select,
+        stmt: Union[Select, Insert, Update, Delete],
     ) -> Select:
         self_method = self._get_self_method(lookup=lookup)
         if self_method is None:
-            return select_stmt
+            return stmt
 
-        expression = self_method(lookup, value, mapper, select_stmt)
+        expression = self_method(lookup, value, mapper, stmt)
 
-        return select_stmt.where(expression)
+        return stmt.where(expression)

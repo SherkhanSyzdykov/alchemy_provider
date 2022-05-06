@@ -1,14 +1,13 @@
-from abc import ABC
 from types import MappingProxyType
-from typing import Any, Mapping, Callable, Optional
+from typing import Any, Mapping, Callable, Optional, Union
 from sqlalchemy.orm import DeclarativeMeta, InstrumentedAttribute
-from sqlalchemy.sql import Select
+from sqlalchemy.sql import Select, Insert, Update, Delete
 from sqlalchemy.sql.expression import BinaryExpression
-from ..utils import is_relationship, get_column, get_related_mapper, is_column
+from utils import is_relationship, get_column, get_related_mapper, is_column
 from .base import BaseClauseBinder
 
 
-class StringClauseBuilder(ABC, BaseClauseBinder):
+class StringClauseBuilder(BaseClauseBinder):
     EQUAL_OPERATOR = 'e'
     NOT_EQUAL_OPERATOR = 'ne'
     LESS_THAN_OPERATOR = 'l'
@@ -107,7 +106,7 @@ class StringClauseBuilder(ABC, BaseClauseBinder):
         lookup: str,
         value: Any,
         mapper: DeclarativeMeta,
-        select_stmt: Select,
+        stmt: Union[Select, Insert, Update, Delete],
     ) -> Select:
         expression = self._get_expression(
             lookup=lookup,
@@ -115,6 +114,6 @@ class StringClauseBuilder(ABC, BaseClauseBinder):
             mapper=mapper,
         )
         if expression is None:
-            return select_stmt
+            return stmt
 
-        return select_stmt.where(expression)
+        return stmt.where(expression)

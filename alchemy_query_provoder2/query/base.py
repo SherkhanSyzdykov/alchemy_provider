@@ -1,23 +1,72 @@
 from __future__ import annotations
-from abc import ABC
-from typing import Any, get_type_hints, Type, get_args, Tuple
+from copy import deepcopy
+from typing import Any, get_type_hints, Type, get_args, Tuple, Dict
+from utils import cls_or_ins
+from .field import Field
 
 
-class BaseQuery(ABC):
+class BaseQuery:
+    _filters: Dict[str, Any] = dict()
+
     def __init__(self, **kwargs):
+        self._set_attrs(**kwargs)
+
+    @staticmethod
+    def _set_values(mapping: Dict[str, Any], **kwargs):
         for field, value in kwargs.items():
-            setattr(self, field, value)
+            if value is ...:
+                continue
 
-    @classmethod
-    def get_class(cls) -> Type[BaseQuery]:
-        if isinstance(cls, BaseQuery):
-            return cls.__class__
+            mapping[field] = value
 
-        return cls
+    @staticmethod
+    def _get_query_type(type_hint: Any) -> Type[BaseQuery]:
+        try:
+            if issubclass(type_hint, BaseQuery):
+                return type_hint
+        except:
+            pass
 
-    @classmethod
-    def is_instance(cls) -> bool:
-        return isinstance(cls, BaseQuery)
+        args = get_args(type_hint)
+        answers = []
+        for item in args:
+            answers.append(BaseQuery._get_query_type(item))
+
+        for answer in answers:
+            try:
+                if issubclass(answer, BaseQuery):
+                    return answer
+            except:
+                pass
+
+    @cls_or_ins
+    def is_class(cls_or_ins) -> bool:
+        return issubclass(cls_or_ins, BaseQuery)
+
+    @cls_or_ins
+    def is_instance(cls_or_ins) -> bool:
+        return isinstance(cls_or_ins, BaseQuery)
+
+    @cls_or_ins
+    def get_filters(cls_or_ins) -> Dict[str, Any]:
+        return deepcopy(cls_or_ins._filters)
+
+    @cls_or_ins
+    def set_filters(cls_or_ins, **kwargs) -> BaseQuery:
+        self = cls_or_ins
+        if cls_or_ins.is_class():
+            self = cls_or_ins()
+
+        self._set_values(self._filters, **kwargs)
+
+        return self
+
+    @cls_or_ins
+    def get_class(cls_or_ins) -> Type[BaseQuery]:
+        if cls_or_ins.is_instance:
+            return cls_or_ins.__class__
+
+        return cls_or_ins
 
     @classmethod
     def get_type_hints(cls):
@@ -33,7 +82,19 @@ class BaseQuery(ABC):
         if field_type_hint is None:
             raise AttributeError
 
-        return cls._get_query_type(field_type_hint)
+        field = cls._get_query_type(field_type_hint)
+
+        if field is None or not issubclass(field, BaseQuery):
+            raise KeyError(
+                f'Attribute {field_name}, '
+                f'in {cls.__name__ or cls.__class__.__name__} is not Query type'
+            )
+
+        return field
+
+    @classmethod
+    def get_fields_count(cls) -> int:
+        return len(cls.get_type_hints())
 
     @classmethod
     def _get_field_type(cls, field_name: str) -> Type:
@@ -57,30 +118,21 @@ class BaseQuery(ABC):
 
         return False
 
-    @staticmethod
-    def _get_query_type(type_hint: Any) -> Type[BaseQuery]:
-        try:
-            if issubclass(type_hint, BaseQuery):
-                return type_hint
-        except:
-            pass
+    @property
+    def dict(self) -> Dict[str, Any]:
+        return self.__dict__
 
-        args = get_args(type_hint)
-        answers = []
-        for item in args:
-            answers.append(BaseQuery._get_query_type(item))
-
-        for answer in answers:
-            try:
-                if issubclass(answer, BaseQuery):
-                    return answer
-            except:
-                pass
-
-    def to_dict(self) -> dict:
-        kwargs = self.__dict__
+    def _set_attrs(self, **kwargs):
         for field, value in kwargs.items():
-            if isinstance(value, BaseQuery):
-                kwargs[field] = value.to_dict()
+            if value is ...:
+                value = None
 
-        return kwargs
+            if field not in self.get_type_hints():
+                continue
+
+            attr_default = getattr(self, field, None)
+            if isinstance(attr_default, Field):
+                setattr(self, field, attr_default(value))
+                continue
+
+            setattr(self, field, value)

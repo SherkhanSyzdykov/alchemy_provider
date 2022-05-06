@@ -1,4 +1,3 @@
-from abc import ABC
 from .base import BaseQuery
 
 
@@ -11,7 +10,7 @@ class JoinStrategy:
         self.is_full = is_full
 
 
-class JoinQuery(ABC, BaseQuery):
+class JoinQuery(BaseQuery):
     @classmethod
     def get_join_strategy(cls, field_name: str):
         class_ = cls

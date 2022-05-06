@@ -1,12 +1,12 @@
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from typing import Any, Optional, List, Mapping, Sequence
 from sqlalchemy.orm import DeclarativeMeta, ColumnProperty
 from sqlalchemy.sql import insert, Insert
-from ..query.insert_query import InsertQuery
+from query.insert_query import InsertQuery
 from .base import BaseProvider
 
 
-class InsertProvider(ABC, BaseProvider):
+class InsertProvider(BaseProvider):
     @abstractmethod
     async def insert(self, *args, **kwargs):
         pass

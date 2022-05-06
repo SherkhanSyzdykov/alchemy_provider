@@ -1,11 +1,10 @@
-from abc import ABC
 from sqlalchemy.orm import DeclarativeMeta, ColumnProperty
 from sqlalchemy.sql import Select, nullsfirst, nullslast
-from ..query.sorting_query import SortingQuery
+from query.sorting_query import SortingQuery
 from .base import BaseProvider
 
 
-class SortingProvider(ABC, BaseProvider):
+class SortingProvider(BaseProvider):
     def bind_sorting(
         self,
         query: SortingQuery,

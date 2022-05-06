@@ -1,10 +1,9 @@
 from __future__ import annotations
-from abc import ABC
 from typing import Any, Tuple
 from .base import BaseQuery
 
 
-class FromRowQuery(ABC, BaseQuery):
+class FromRowQuery(BaseQuery):
     @classmethod
     def _from_row(
         cls,
@@ -16,12 +15,12 @@ class FromRowQuery(ABC, BaseQuery):
         i = 0
         while i < len(row):
             for field in type_hints.keys():
-                if not cls._is_query_field(field=field):
+                if not cls._is_query_field(field_name=field):
                     setattr(query_instance, field, row[i])
                     i += 1
                     continue
 
-                nested_query = cls.get_field_query(field=field)
+                nested_query = cls.get_field_query(field_name=field)
                 nested_query_fields_count = cls.get_fields_count()
                 nested_query_instance = nested_query._from_row(
                     row[i: i + nested_query_fields_count]

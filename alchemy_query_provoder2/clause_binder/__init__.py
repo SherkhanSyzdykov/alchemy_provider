@@ -1,2 +1,2 @@
-from .base import BaseClauseBinder
-from .clause_binder import ClauseBinder, AbstractClauseBinder
+from .abstract_clause_binder import AbstractClauseBinder
+from .clause_binder import ClauseBinder

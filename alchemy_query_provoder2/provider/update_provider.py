@@ -1,13 +1,13 @@
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from typing import Any, Dict, Sequence, Optional
 from sqlalchemy.orm import DeclarativeMeta, ColumnProperty
 from sqlalchemy.sql import update, Update
-from ..query.update_query import UpdateQuery
+from query.update_query import UpdateQuery
 from .base import BaseProvider
 from .join_provider import JoinProvider
 
 
-class UpdateProvider(ABC, JoinProvider, BaseProvider):
+class UpdateProvider(JoinProvider, BaseProvider):
     @abstractmethod
     async def update(self, *args, **kwargs):
         pass
@@ -20,7 +20,7 @@ class UpdateProvider(ABC, JoinProvider, BaseProvider):
     ) -> Update:
         update_stmt = update(mapper)
         update_stmt = self._bind_clause(
-            clause=query.filters,
+            clause=query.get_filters(),
             mapper=mapper,
             stmt=update_stmt,
         )
@@ -76,7 +76,7 @@ class UpdateProvider(ABC, JoinProvider, BaseProvider):
         mapper: DeclarativeMeta
     ) -> Dict[str, Any]:
         updatable_values = dict()
-        for item, value in query.values.items():
+        for item, value in query.get_values().items():
             mapper_field = getattr(mapper, item, None)
             if mapper_field is None:
                 continue

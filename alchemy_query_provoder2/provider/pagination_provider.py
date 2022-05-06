@@ -1,10 +1,9 @@
-from abc import ABC
 from sqlalchemy.sql import Select
-from ..query.pagination_query import PaginationQuery
+from query.pagination_query import PaginationQuery
 from .base import BaseProvider
 
 
-class PaginationProvider(ABC, BaseProvider):
+class PaginationProvider(BaseProvider):
     def bind_pagination(
         self,
         query: PaginationQuery,

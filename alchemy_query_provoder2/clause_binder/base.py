@@ -1,13 +1,13 @@
-from abc import ABC, abstractmethod
-from typing import Dict, Iterable, Any, Optional
+from abc import abstractmethod
+from typing import Dict, Any, Optional, Union, Sequence
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import DeclarativeMeta
-from sqlalchemy.sql import Select
+from sqlalchemy.sql import Select, Insert, Update, Delete
 from sqlalchemy.sql.expression import BinaryExpression
-from ..utils import is_relationship, get_column, get_related_mapper
+from utils import is_relationship, get_column, get_related_mapper
 
 
-class BaseClauseBinder(ABC):
+class BaseClauseBinder:
     LOOKUP_STRING = '__'
     OR_OPERATOR = '_or_'
     AND_OPERATOR = '_and_'
@@ -29,7 +29,7 @@ class BaseClauseBinder(ABC):
         lookup: str,
         value: Any,
         mapper: DeclarativeMeta,
-        select_stmt: Select,
+        stmt: Union[Select, Insert, Update, Delete],
     ) -> Select:
         pass
 
@@ -39,7 +39,7 @@ class BaseClauseBinder(ABC):
         lookup: str,
         value: Any,
         mapper: DeclarativeMeta,
-        select_stmt: Select,
+        stmt: Union[Select, Insert, Update, Delete],
     ) -> Select:
         pass
 
@@ -56,46 +56,46 @@ class BaseClauseBinder(ABC):
         self,
         clause: Dict[str, Any],
         mapper: DeclarativeMeta,
-        select_stmt: Select
+        stmt: Union[Select, Insert, Update, Delete]
     ) -> Select:
         for lookup, value in clause.items():
-            select_stmt = self._bind_expressions(
+            stmt = self._bind_expressions(
                 lookup=lookup,
                 value=value,
                 mapper=mapper,
-                select_stmt=select_stmt
+                stmt=stmt
             )
 
-        return select_stmt
+        return stmt
 
     def _bind_expressions(
         self,
         lookup: str,
         value: Any,
         mapper: DeclarativeMeta,
-        select_stmt: Select,
+        stmt: Union[Select, Insert, Update, Delete],
     ) -> Select:
         if self._is_self_method(lookup=lookup):
             return self._bind_self_method(
                 lookup=lookup,
                 value=value,
                 mapper=mapper,
-                select_stmt=select_stmt
+                stmt=stmt
             )
 
         if type(value) is dict:
-            select_stmt = self._bind_dict_value(
+            stmt = self._bind_dict_value(
                 lookup=lookup,
                 value=value,
                 mapper=mapper,
-                select_stmt=select_stmt
+                stmt=stmt
             )
 
         return self._bind_string_expression_method(
             lookup=lookup,
             value=value,
             mapper=mapper,
-            select_stmt=select_stmt
+            stmt=stmt
         )
 
     def _bind_dict_value(
@@ -103,24 +103,27 @@ class BaseClauseBinder(ABC):
         lookup: str,
         value: Dict[str, Any],
         mapper: DeclarativeMeta,
-        select_stmt: Select
+        stmt: Union[Select, Insert, Update, Delete]
     ) -> Select:
         expression = self._get_dict_expression(
             lookup=lookup,
             value=value,
             mapper=mapper
         )
-        if expression is not None:
-            return select_stmt
+        if expression is None:
+            return stmt
 
-        return select_stmt.where(expression)
+        if isinstance(expression, Sequence):
+            return stmt.where(*expression)
+
+        return stmt.where(expression)
 
     def _get_dict_expression(
         self,
         lookup: str,
         value: Dict[str, Any],
         mapper: DeclarativeMeta,
-    ) -> Optional[BinaryExpression]:
+    ) -> Optional[Union[BinaryExpression, Sequence[BinaryExpression]]]:
         if lookup in (self.AND_OPERATOR, self.OR_OPERATOR) \
                 and type(value) is not dict:
             raise ValueError(
@@ -143,7 +146,7 @@ class BaseClauseBinder(ABC):
         column = get_column(mapper=mapper, field_name=lookup)
         if column is not None:
             if is_relationship(mapper_field=column):
-                return self._get_and_expression(
+                return self._get_expressions(
                     clause=value,
                     mapper=get_related_mapper(mapper=mapper, field_name=lookup),
                 )
@@ -174,7 +177,7 @@ class BaseClauseBinder(ABC):
         self,
         clause: Dict[str, Any],
         mapper: DeclarativeMeta,
-    ) -> Iterable[BinaryExpression]:
+    ) -> Sequence[BinaryExpression]:
         expressions = []
         for lookup, value in clause.items():
             if type(value) is dict:

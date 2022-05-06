@@ -1,11 +1,12 @@
 from __future__ import annotations
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from typing import Union, Type, List
 from sqlalchemy import select
 from sqlalchemy.sql import Select, Insert
 from sqlalchemy.orm import DeclarativeMeta, ColumnProperty, RelationshipProperty
-from ..query.select_query import SelectQuery
-from ..utils import get_related_mapper
+from query.base import BaseQuery
+from query.select_query import SelectQuery
+from utils import get_related_mapper
 from .base import BaseProvider
 from .join_provider import JoinProvider
 from .pagination_provider import PaginationProvider
@@ -13,7 +14,6 @@ from .sorting_provider import SortingProvider
 
 
 class SelectProvider(
-    ABC,
     JoinProvider,
     PaginationProvider,
     SortingProvider,
@@ -49,7 +49,7 @@ class SelectProvider(
 
         if query.is_instance():
             select_stmt = self._bind_clause(
-                clause=query.to_dict(),
+                clause=query.get_filters(),
                 mapper=mapper,
                 stmt=select_stmt
             )
@@ -113,13 +113,18 @@ class SelectProvider(
         self,
         query: Union[Type[SelectQuery], SelectQuery],
         mapper: DeclarativeMeta
-    ) -> List[SelectQuery]:
+    ) -> List[BaseQuery]:
         select_stmt = self.make_select_stmt(
             query=query,
             mapper=mapper
         )
 
         scalar_result = await self._session.execute(select_stmt)
+
+        import pdb
+        pdb.set_trace(
+
+        )
         queries = []
         for row in scalar_result:
             queries.append(

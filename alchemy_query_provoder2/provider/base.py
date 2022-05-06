@@ -1,19 +1,16 @@
 from __future__ import annotations
-from abc import ABC, abstractmethod
-from typing import Optional, Union, Any, Dict, Union
+from abc import abstractmethod
+from typing import Optional, Any, Dict, Union
 from sqlalchemy.ext.asyncio import AsyncSession, async_scoped_session
 from sqlalchemy.orm import DeclarativeMeta
 from sqlalchemy.sql import Select, Insert, Update, Delete
 
 
-class BaseProvider(ABC):
-    _session: Optional[Union[AsyncSession, async_scoped_session]] = None
-
-    def set_session(
-        self,
-        session: Union[AsyncSession, async_scoped_session]
-    ):
-        self._session = session
+class BaseProvider:
+    @property
+    @abstractmethod
+    def _session(self) -> Union[AsyncSession, async_scoped_session]:
+        pass
 
     @abstractmethod
     def _bind_clause(
