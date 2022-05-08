@@ -2,7 +2,7 @@ from abc import abstractmethod
 from typing import Any, Dict, Sequence, Optional
 from sqlalchemy.orm import DeclarativeMeta, ColumnProperty
 from sqlalchemy.sql import update, Update
-from query.update_query import UpdateQuery
+from ..query.update_query import UpdateQuery
 from .base import BaseProvider
 from .join_provider import JoinProvider
 

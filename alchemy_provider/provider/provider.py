@@ -1,19 +1,21 @@
 from typing import List, Dict, Any, Union, Optional, Sequence
 from sqlalchemy.orm import DeclarativeMeta
 from sqlalchemy.sql import Select, Insert, Update, Delete
-from clause_binder.clause_binder import ClauseBinder
-from query.query import AbstractQuery
+from ..clause_binder.clause_binder import ClauseBinder
+from ..query.query import AbstractQuery
 from .select_provider import SelectProvider
 from .insert_provider import InsertProvider
 from .update_provider import UpdateProvider
 from .delete_provider import DeleteProvider
+from .count_provider import CountProvider
 
 
 class Provider(
+    CountProvider,
     SelectProvider,
     InsertProvider,
     UpdateProvider,
-    DeleteProvider
+    DeleteProvider,
 ):
     def _bind_clause(
         self,

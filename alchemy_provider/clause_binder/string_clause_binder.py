@@ -1,9 +1,10 @@
 from types import MappingProxyType
 from typing import Any, Mapping, Callable, Optional, Union
 from sqlalchemy.orm import DeclarativeMeta, InstrumentedAttribute
+from sqlalchemy.orm.util import AliasedClass
 from sqlalchemy.sql import Select, Insert, Update, Delete
 from sqlalchemy.sql.expression import BinaryExpression
-from utils import is_relationship, get_column, get_related_mapper, is_column
+from ..utils import is_relationship, get_column, is_column, AliasedManager
 from .base import BaseClauseBinder
 
 
@@ -48,7 +49,7 @@ class StringClauseBuilder(BaseClauseBinder):
     def _get_column(
         self,
         lookup: str,
-        mapper: DeclarativeMeta
+        mapper: Union[DeclarativeMeta, AliasedClass]
     ) -> Optional[InstrumentedAttribute]:
         """
         lookup: meter_inline__directory__name__ilike: "%some_directory_name%"
@@ -65,7 +66,7 @@ class StringClauseBuilder(BaseClauseBinder):
             if is_relationship(mapper_field=mapper_field):
                 return self._get_column(
                     lookup=self.LOOKUP_STRING.join(lookup_parts[i+1:]),
-                    mapper=get_related_mapper(
+                    mapper=AliasedManager.get_or_create(
                         mapper=mapper,
                         field_name=lookup_part
                     )

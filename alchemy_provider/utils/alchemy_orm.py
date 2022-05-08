@@ -3,7 +3,8 @@ Utils for work with SQLAlchemy orm
 """
 from typing import Optional
 from sqlalchemy.orm import DeclarativeMeta, InstrumentedAttribute, \
-    ColumnProperty, RelationshipProperty
+    ColumnProperty, RelationshipProperty, aliased
+from sqlalchemy.orm.util import AliasedClass
 
 
 def get_related_mapper(
@@ -37,3 +38,15 @@ def is_relationship(
     mapper_field: InstrumentedAttribute
 ) -> bool:
     return isinstance(mapper_field.property, RelationshipProperty)
+
+
+def make_aliased_mapper(
+    mapper: DeclarativeMeta,
+    field_name: str,
+) -> Optional[AliasedClass]:
+    related_mapper = get_related_mapper(
+        mapper=mapper,
+        field_name=field_name
+    )
+    aliased_mapper = aliased(related_mapper, name=field_name)
+    return aliased_mapper

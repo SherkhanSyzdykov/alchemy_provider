@@ -1,6 +1,6 @@
 from sqlalchemy.orm import DeclarativeMeta, ColumnProperty
 from sqlalchemy.sql import Select, nullsfirst, nullslast
-from query.sorting_query import SortingQuery
+from ..query.sorting_query import SortingQuery
 from .base import BaseProvider
 
 

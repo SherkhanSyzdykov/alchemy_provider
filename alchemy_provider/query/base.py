@@ -1,7 +1,7 @@
 from __future__ import annotations
 from copy import deepcopy
 from typing import Any, get_type_hints, Type, get_args, Tuple, Dict
-from utils import cls_or_ins
+from ..utils import cls_or_ins
 from .field import Field
 
 

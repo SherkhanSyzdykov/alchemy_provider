@@ -5,10 +5,11 @@ from sqlalchemy import select
 from sqlalchemy.sql import Select, Insert
 from sqlalchemy.orm import DeclarativeMeta, ColumnProperty, \
     RelationshipProperty, InstrumentedAttribute
-from query.base import BaseQuery
-from query.from_row import FIELD_NAME_SEPARATOR
-from query.select_query import SelectQuery
-from utils import get_related_mapper
+from sqlalchemy.orm.util import AliasedClass
+from ..query.base import BaseQuery
+from ..query.from_row import FIELD_NAME_SEPARATOR
+from ..query.select_query import SelectQuery
+from ..utils import AliasedManager
 from .base import BaseProvider
 from .join_provider import JoinProvider
 from .pagination_provider import PaginationProvider
@@ -91,8 +92,8 @@ class SelectProvider(
     def _make_select_stmt(
         self,
         select_stmt: Select,
-        query: Union[Type[SelectQuery], SelectQuery],
-        mapper: DeclarativeMeta,
+        query: Union[Type[SelectQuery], SelectQuery, Type[BaseQuery], BaseQuery],
+        mapper: Union[DeclarativeMeta, AliasedClass],
         label_prefix: Optional[str] = None,
     ) -> Select:
         type_hints = query.get_type_hints()
@@ -114,19 +115,23 @@ class SelectProvider(
                 continue
 
             if isinstance(mapper_field.property, RelationshipProperty):
+                aliased_mapper = AliasedManager.get_or_create(
+                    mapper=mapper,
+                    field_name=field_name
+                )
+
                 select_stmt = self._join(
                     field_name=field_name,
                     query=query,
                     stmt=select_stmt,
                     mapper=mapper,
+                    aliased_mapper=aliased_mapper,
                 )
+
                 select_stmt = self._make_select_stmt(
                     select_stmt=select_stmt,
                     query=query.get_field_query(field_name),
-                    mapper=get_related_mapper(
-                        mapper=mapper,
-                        field_name=field_name,
-                    ),
+                    mapper=aliased_mapper,
                     label_prefix=field_name
                 )
 

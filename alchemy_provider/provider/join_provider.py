@@ -1,7 +1,8 @@
 from typing import Union, Type
 from sqlalchemy.orm import DeclarativeMeta
+from sqlalchemy.orm.util import AliasedClass
 from sqlalchemy.sql import Select, Insert, Update, Delete
-from query.join_query import JoinQuery
+from ..query.join_query import JoinQuery
 from .base import BaseProvider
 
 
@@ -11,13 +12,15 @@ class JoinProvider(BaseProvider):
         field_name: str,
         query: Union[JoinQuery, Type[JoinQuery]],
         stmt: Union[Select, Insert, Update, Delete],
-        mapper: DeclarativeMeta
+        mapper: DeclarativeMeta,
+        aliased_mapper: AliasedClass
     ) -> Union[Select, Insert, Update, Delete]:
         mapper_field = getattr(mapper, field_name)
         join_strategy = query.get_join_strategy(field_name=field_name)
 
         return stmt.join(
-            mapper_field,
+            aliased_mapper,
+            onclause=mapper_field,
             isouter=join_strategy.is_outer,
             full=join_strategy.is_full
         )

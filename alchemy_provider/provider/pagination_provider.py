@@ -1,5 +1,5 @@
 from sqlalchemy.sql import Select
-from query.pagination_query import PaginationQuery
+from ..query.pagination_query import PaginationQuery
 from .base import BaseProvider
 
 

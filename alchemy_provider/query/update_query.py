@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Any, Dict
 from copy import deepcopy
-from utils import cls_or_ins
+from ..utils import cls_or_ins
 from .base import BaseQuery
 from .from_row import FromRowQuery
 from .join_query import JoinQuery

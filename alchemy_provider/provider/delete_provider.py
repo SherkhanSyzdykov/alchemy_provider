@@ -1,7 +1,7 @@
 from abc import abstractmethod
 from sqlalchemy.orm import DeclarativeMeta
 from sqlalchemy.sql import delete, Delete
-from query.delete_query import DeleteQuery
+from ..query.delete_query import DeleteQuery
 from .base import BaseProvider
 from .join_provider import JoinProvider
 

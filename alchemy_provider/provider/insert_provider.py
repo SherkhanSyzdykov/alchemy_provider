@@ -2,7 +2,7 @@ from abc import abstractmethod
 from typing import Any, Optional, List, Mapping, Sequence, Type, Union, Dict
 from sqlalchemy.orm import DeclarativeMeta, ColumnProperty
 from sqlalchemy.sql import insert, Insert
-from query.insert_query import InsertQuery
+from ..query.insert_query import InsertQuery
 from .base import BaseProvider
 
 

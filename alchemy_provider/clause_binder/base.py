@@ -2,9 +2,10 @@ from abc import abstractmethod
 from typing import Dict, Any, Optional, Union, Sequence
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import DeclarativeMeta
+from sqlalchemy.orm.util import AliasedClass
 from sqlalchemy.sql import Select, Insert, Update, Delete
 from sqlalchemy.sql.expression import BinaryExpression
-from utils import is_relationship, get_column, get_related_mapper
+from ..utils import is_relationship, get_column, AliasedManager
 
 
 class BaseClauseBinder:
@@ -148,7 +149,10 @@ class BaseClauseBinder:
             if is_relationship(mapper_field=column):
                 return self._get_expressions(
                     clause=value,
-                    mapper=get_related_mapper(mapper=mapper, field_name=lookup),
+                    mapper=AliasedManager.get_or_create(
+                        mapper=mapper,
+                        field_name=lookup
+                    ),
                 )
 
     def _get_or_expression(
@@ -176,12 +180,13 @@ class BaseClauseBinder:
     def _get_expressions(
         self,
         clause: Dict[str, Any],
-        mapper: DeclarativeMeta,
+        mapper: Union[DeclarativeMeta, AliasedClass],
     ) -> Sequence[BinaryExpression]:
         expressions = []
         for lookup, value in clause.items():
             if type(value) is dict:
                 expressions.append(self._get_dict_expression(
+                    lookup=lookup,
                     value=clause,
                     mapper=mapper
                 ))
