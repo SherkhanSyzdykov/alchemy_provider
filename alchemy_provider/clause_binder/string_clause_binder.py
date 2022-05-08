@@ -49,7 +49,8 @@ class StringClauseBuilder(BaseClauseBinder):
     def _get_column(
         self,
         lookup: str,
-        mapper: Union[DeclarativeMeta, AliasedClass]
+        mapper: Union[DeclarativeMeta, AliasedClass],
+        stmt_id: int,
     ) -> Optional[InstrumentedAttribute]:
         """
         lookup: meter_inline__directory__name__ilike: "%some_directory_name%"
@@ -68,8 +69,10 @@ class StringClauseBuilder(BaseClauseBinder):
                     lookup=self.LOOKUP_STRING.join(lookup_parts[i+1:]),
                     mapper=AliasedManager.get_or_create(
                         mapper=mapper,
-                        field_name=lookup_part
-                    )
+                        field_name=lookup_part,
+                        stmt_id=stmt_id,
+                    ),
+                    stmt_id=stmt_id,
                 )
 
     def _get_expression(
@@ -77,12 +80,14 @@ class StringClauseBuilder(BaseClauseBinder):
         lookup: str,
         value: Any,
         mapper: DeclarativeMeta,
+        stmt_id: int,
     ) -> Optional[BinaryExpression]:
         """
         """
         column = self._get_column(
             lookup=lookup,
-            mapper=mapper
+            mapper=mapper,
+            stmt_id=stmt_id,
         )
         if column is None:
             return
@@ -113,6 +118,7 @@ class StringClauseBuilder(BaseClauseBinder):
             lookup=lookup,
             value=value,
             mapper=mapper,
+            stmt_id=id(stmt)
         )
         if expression is None:
             return stmt

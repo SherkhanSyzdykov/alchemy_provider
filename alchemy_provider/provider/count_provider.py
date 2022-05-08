@@ -2,7 +2,8 @@ from abc import abstractmethod
 from sqlalchemy import func, distinct
 from sqlalchemy.orm import DeclarativeMeta
 from sqlalchemy.sql import Select, select
-from ..query import AbstractQuery
+from ..clause_binder import ClauseBinder
+from ..query import CRUDQuery
 from .select_provider import SelectProvider
 
 
@@ -11,10 +12,15 @@ class CountProvider(SelectProvider):
     async def select_count(self, *args, **kwargs):
         pass
 
-    def make_count_stmt(
+    @abstractmethod
+    def make_count_stmt(self, *args, **kwargs):
+        pass
+
+    def _make_count_stmt(
         self,
-        query: AbstractQuery,
+        query: CRUDQuery,
         mapper: DeclarativeMeta,
+        clause_binder: ClauseBinder
     ) -> Select:
         """
         select count(distinct alias1.id)
@@ -25,10 +31,12 @@ class CountProvider(SelectProvider):
             order by test.name, test2.id
         ) as alias1
         """
-
-        select_stmt = self.make_select_stmt(
+        query.limit = None
+        query.offset = None
+        select_stmt = self._make_select_stmt(
             query=query,
-            mapper=mapper
+            mapper=mapper,
+            clause_binder=clause_binder
         )
         select_count_stmt = select(func.count()).select_from(select_stmt)
 
@@ -46,9 +54,9 @@ class CountProvider(SelectProvider):
 
     async def _select_count(
         self,
-        query: AbstractQuery,
+        query: CRUDQuery,
         mapper: DeclarativeMeta,
     ) -> int:
-        select_count_stmt = self.make_count_stmt(query=query, mapper=mapper)
+        select_count_stmt = self._make_count_stmt(query=query, mapper=mapper)
 
         return await self._session.scalar(select_count_stmt)

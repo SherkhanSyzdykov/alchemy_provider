@@ -6,9 +6,8 @@ from sqlalchemy.sql import Select, Insert
 from sqlalchemy.orm import DeclarativeMeta, ColumnProperty, \
     RelationshipProperty, InstrumentedAttribute
 from sqlalchemy.orm.util import AliasedClass
-from ..query.base import BaseQuery
-from ..query.from_row import FIELD_NAME_SEPARATOR
-from ..query.select_query import SelectQuery
+from ..clause_binder import ClauseBinder
+from ..query import CRUDQuery, FIELD_NAME_SEPARATOR
 from ..utils import AliasedManager
 from .base import BaseProvider
 from .join_provider import JoinProvider
@@ -26,15 +25,17 @@ class SelectProvider(
     async def select(self, *args, **kwargs):
         pass
 
-    def make_select_stmt(
-        self,
-        query: Union[Type[SelectQuery], SelectQuery],
-        mapper: DeclarativeMeta
-    ) -> Select:
-        select_stmt = select()
+    @abstractmethod
+    def make_select_stmt(self, *args, **kwargs):
+        pass
 
-        select_stmt = self._make_select_stmt(
-            select_stmt=select_stmt,
+    def _make_select_stmt(
+        self,
+        query: Union[Type[CRUDQuery], CRUDQuery],
+        mapper: DeclarativeMeta,
+        clause_binder: ClauseBinder
+    ) -> Select:
+        select_stmt = self._make_simple_select_stmt(
             query=query,
             mapper=mapper
         )
@@ -54,14 +55,17 @@ class SelectProvider(
             select_stmt = self._bind_clause(
                 clause=query.get_filters(),
                 mapper=mapper,
-                stmt=select_stmt
+                stmt=select_stmt,
+                clause_binder=clause_binder
             )
+
+        AliasedManager.delete(id(select_stmt))
 
         return select_stmt
 
-    def make_select_from_insert(
+    def __make_select_from_insert(
         self,
-        query: SelectQuery,
+        query: CRUDQuery,
         insert_stmt: Insert
     ) -> Select:
         """
@@ -79,23 +83,17 @@ class SelectProvider(
         """
         raise NotImplementedError
 
-    def _make_column_label(
+    def _make_simple_select_stmt(
         self,
-        mapper_field: InstrumentedAttribute,
-        label_prefix: Optional[str] = None,
-    ) -> str:
-        if label_prefix is None:
-            return mapper_field.name
-
-        return label_prefix + FIELD_NAME_SEPARATOR + mapper_field.name
-
-    def _make_select_stmt(
-        self,
-        select_stmt: Select,
-        query: Union[Type[SelectQuery], SelectQuery, Type[BaseQuery], BaseQuery],
+        query: Type[CRUDQuery],
         mapper: Union[DeclarativeMeta, AliasedClass],
         label_prefix: Optional[str] = None,
+        select_stmt: Optional[Select] = None,
     ) -> Select:
+
+        if select_stmt is None:
+            select_stmt = select()
+
         type_hints = query.get_type_hints()
 
         for field_name, type_hint in type_hints.items():
@@ -116,6 +114,7 @@ class SelectProvider(
 
             if isinstance(mapper_field.property, RelationshipProperty):
                 aliased_mapper = AliasedManager.get_or_create(
+                    stmt_id=id(select_stmt),
                     mapper=mapper,
                     field_name=field_name
                 )
@@ -128,7 +127,7 @@ class SelectProvider(
                     aliased_mapper=aliased_mapper,
                 )
 
-                select_stmt = self._make_select_stmt(
+                select_stmt = self._make_simple_select_stmt(
                     select_stmt=select_stmt,
                     query=query.get_field_query(field_name),
                     mapper=aliased_mapper,
@@ -137,14 +136,26 @@ class SelectProvider(
 
         return select_stmt
 
+    @staticmethod
+    def _make_column_label(
+        mapper_field: InstrumentedAttribute,
+        label_prefix: Optional[str] = None,
+    ) -> str:
+        if label_prefix is None:
+            return mapper_field.name
+
+        return label_prefix + FIELD_NAME_SEPARATOR + mapper_field.name
+
     async def _select(
         self,
-        query: Union[Type[SelectQuery], SelectQuery],
-        mapper: DeclarativeMeta
-    ) -> List[BaseQuery]:
-        select_stmt = self.make_select_stmt(
+        query: Union[Type[CRUDQuery], CRUDQuery],
+        mapper: DeclarativeMeta,
+        clause_binder: ClauseBinder
+    ) -> List[CRUDQuery]:
+        select_stmt = self._make_select_stmt(
             query=query,
-            mapper=mapper
+            mapper=mapper,
+            clause_binder=clause_binder
         )
 
         scalar_result = await self._session.execute(select_stmt)

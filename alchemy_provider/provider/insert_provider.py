@@ -2,7 +2,7 @@ from abc import abstractmethod
 from typing import Any, Optional, List, Mapping, Sequence, Type, Union, Dict
 from sqlalchemy.orm import DeclarativeMeta, ColumnProperty
 from sqlalchemy.sql import insert, Insert
-from ..query.insert_query import InsertQuery
+from ..query import CRUDQuery
 from .base import BaseProvider
 
 
@@ -15,16 +15,23 @@ class InsertProvider(BaseProvider):
     async def bulk_insert(self, *args, **kwargs):
         pass
 
-    def make_insert_stmt(
+    @abstractmethod
+    def make_insert_stmt(self, *args, **kwargs):
+        pass
+
+    @abstractmethod
+    def make_bulk_insert_stmt(self, *args, **kwargs):
+        pass
+
+    def _make_insert_stmt(
         self,
-        query: InsertQuery,
+        query: CRUDQuery,
         mapper: DeclarativeMeta,
         returning: bool = True,
     ) -> Insert:
         insert_stmt = insert(mapper)
 
         insertable_values = self.__make_insertable_values(
-            query=query,
             mapper=mapper,
             values=query.dict,
         )
@@ -36,9 +43,8 @@ class InsertProvider(BaseProvider):
 
         return insert_stmt
 
-    def make_bulk_insert_stmt(
+    def _make_bulk_insert_stmt(
         self,
-        query: Union[InsertQuery, Type[InsertQuery]],
         values_seq: Sequence[Dict[str, Any]],
         mapper: DeclarativeMeta,
         returning: bool = True,
@@ -49,7 +55,6 @@ class InsertProvider(BaseProvider):
 
         for values in values_seq:
             insertable_values = self.__make_insertable_values(
-                query=query,
                 mapper=mapper,
                 values=values
             )
@@ -65,14 +70,14 @@ class InsertProvider(BaseProvider):
 
     async def _insert(
         self,
-        query: InsertQuery,
+        query: CRUDQuery,
         mapper: DeclarativeMeta,
         returning: bool = True,
-    ) -> Optional[InsertQuery]:
+    ) -> Optional[CRUDQuery]:
         """
         if returning is True, returns instance of passed query
         """
-        insert_stmt = self.make_insert_stmt(
+        insert_stmt = self._make_insert_stmt(
             query=query,
             mapper=mapper,
             returning=returning
@@ -85,14 +90,14 @@ class InsertProvider(BaseProvider):
 
     async def _bulk_insert(
         self,
-        query: Union[InsertQuery, Type[InsertQuery]],
+        query: Union[CRUDQuery, Type[CRUDQuery]],
         values_seq: Sequence[Dict[str, Any]],
         mapper: DeclarativeMeta,
         returning: bool = True,
-    ) -> Optional[Sequence[InsertQuery]]:
+    ) -> Optional[Sequence[CRUDQuery]]:
         """
         If returning is True, returns iterable object that contains
-        InsertQuery
+        CRUDQuery
         """
         if not values_seq:
             return
@@ -109,18 +114,14 @@ class InsertProvider(BaseProvider):
         if returning:
             return query.from_returning_mappers(scalar_result.all())
 
+    @staticmethod
     def __make_insertable_values(
-        self,
-        query: InsertQuery,
         mapper: DeclarativeMeta,
         values: Dict[str, Any],
     ) -> Mapping[str, Any]:
         insertable_values = dict()
 
         for field_name, value in values.items():
-            if field_name not in query.get_type_hints():
-                continue
-
             mapper_field = getattr(mapper, field_name, None)
 
             if mapper_field is None:

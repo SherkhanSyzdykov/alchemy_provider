@@ -142,9 +142,6 @@ class BaseQuery:
             if value is ...:
                 value = None
 
-            if field not in self.get_type_hints():
-                continue
-
             attr_default = getattr(self, field, None)
             if isinstance(attr_default, Field):
                 setattr(self, field, attr_default(value))
