@@ -32,10 +32,6 @@ class AliasedManager:
         cls,
         uuid: UUID,
     ):
-        print('CLS.__ALIASED_MAP')
-        print(cls.__aliased_map)
-        [print(i) for i in cls.__aliased_map]
-        print()
         cls.__aliased_map.pop(uuid, None)
 
     @classmethod
