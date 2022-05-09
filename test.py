@@ -10,11 +10,6 @@ from alchemy_provider.query import AbstractQuery, JoinStrategy
 from alchemy_provider.utils.aliased_manager import AliasedManager
 
 
-engine = create_async_engine(
-    'postgresql+asyncpg://ami:secret@localhost:5432/ami',
-    echo=True
-)
-
 
 class BaseQuery(AbstractQuery):
     limit: int = 25
@@ -71,7 +66,7 @@ class MountEventProvider(AbstractProvider):
 
 
 select_kwargs = dict(
-    # id__g=1,
+    id__g=1,
     # status__in=[0, 1, 2],
     # device_type__name__ilike='%a%',
     # device_type={
@@ -90,38 +85,56 @@ select_kwargs = dict(
 )
 
 
-async def main():
+async def main():id__g=1,
+        status__in=[1, 2],
+        device_type__name__ilike='%some_name%',
+        device_type={
+            'id__l': 100,
+            'description__ilike': '%desc%'
+        },
+        meter_type={
+            'id__lt': 2,
+            'name__like': '%sdfsdf%'
+        },
+        meter_type__description__ilike='%asdfsdf%',
+        mounted_by__name__ilike='%sdfsdf%',
+        mounted_by__name__in=['some_name'],
+        mounted_by__type__in=[1, 2],
+        limit=1,
+        offset=2
     provider = MountEventProvider()
-    print('WTF')
+
     count = await provider.select_count(
         **select_kwargs
     )
-    queries = await provider.select(
+
+    selected = await provider.select(
         **select_kwargs
     )
 
     await provider.session.rollback()
     await provider.session.close()
 
-    return count, queries
+    return count, selected
 
 
 res = asyncio.run(main())
 
 provider = MountEventProvider()
 
-# insert_stmt = provider.make_insert_stmt(
-#         status=0,
-#         event_type=0,
-#         device_type_id=1,
-#         field_id=2,
-#     )
-#
-# bulk_insert_stmt = provider.make_bulk_insert_stmt(
-#     values_seq=[
-#         dict(status=0, event_type=0, device_type_id=1, field_id=0)
-#     ]
-# )
+insert_stmt = provider.make_insert_stmt(
+        status=0,
+        event_type=0,
+        device_type_id=1,
+        field_id=2,
+    )
+
+bulk_insert_stmt = provider.make_bulk_insert_stmt(
+    values_seq=[
+        dict(status=0, event_type=0, device_type_id=1, field_id=0),
+        dict(status=1, event_type=2, device_type_id=1, field_id=1)
+    ]
+)
 
 
 select_count_stmt = provider.make_count_stmt(
@@ -164,36 +177,34 @@ select_stmt = provider.make_select_stmt(
     offset=2
 )
 
-# update_stmt = provider.make_update_stmt_from_kwargs(
-#     id__g=1,
-#     status__in=[1, 2],
-#     # device_type__name__ilike='%some_name%',
-#     # device_type={
-#     #     'id__l': 100,
-#     #     'description__ilike': '%desc%'
-#     # },
-#     # meter_type={
-#     #     'id__lt': 2,
-#     #     'name__like': '%sdfsdf%'
-#     # },
-#     # meter_type__description__ilike='%asdfsdf%',
-#     event_type=1,
-#     directory={'city_name': 'asdfsdf'}
-# )
-#
-# delete_stmt = provider.make_delete_stmt(
-#     id__g=1,
-#     status__in=[1, 2],
-#     # device_type__name__ilike='%some_name%',
-#     # device_type={
-#     #     'id__l': 100,
-#     #     'description__ilike': '%desc%'
-#     # },
-#     # meter_type={
-#     #     'id__lt': 2,
-#     #     'name__like': '%sdfsdf%'
-#     # },
-#     # meter_type__description__ilike='%asdfsdf%',
-# )
+update_stmt = provider.make_update_stmt_from_kwargs(
+    id__g=1,
+    status__in=[1, 2],
+    # device_type__name__ilike='%some_name%',
+    # device_type={
+    #     'id__l': 100,
+    #     'description__ilike': '%desc%'
+    # },
+    # meter_type={
+    #     'id__lt': 2,
+    #     'name__like': '%sdfsdf%'
+    # },
+    # meter_type__description__ilike='%asdfsdf%',
+    event_type=1,
+    directory={'city_name': 'asdfsdf'}
+)
 
-
+delete_stmt = provider.make_delete_stmt(
+    id__g=1,
+    status__in=[1, 2],
+    # device_type__name__ilike='%some_name%',
+    # device_type={
+    #     'id__l': 100,
+    #     'description__ilike': '%desc%'
+    # },
+    # meter_type={
+    #     'id__lt': 2,
+    #     'name__like': '%sdfsdf%'
+    # },
+    # meter_type__description__ilike='%asdfsdf%',
+)
