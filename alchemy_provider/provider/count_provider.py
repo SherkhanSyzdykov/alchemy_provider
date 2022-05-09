@@ -56,7 +56,12 @@ class CountProvider(SelectProvider):
         self,
         query: CRUDQuery,
         mapper: DeclarativeMeta,
+        clause_binder: ClauseBinder,
     ) -> int:
-        select_count_stmt = self._make_count_stmt(query=query, mapper=mapper)
+        select_count_stmt = self._make_count_stmt(
+            query=query,
+            mapper=mapper,
+            clause_binder=clause_binder,
+        )
 
         return await self._session.scalar(select_count_stmt)

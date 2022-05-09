@@ -96,6 +96,16 @@ class AbstractProvider(
             clause_binder=self._clause_binder
         )
 
+    async def select_count(
+        self,
+        **kwargs
+    ) -> int:
+        return await self._select_count(
+            query=self._query_type.set_filters(**kwargs),
+            mapper=self._mapper,
+            clause_binder=self._clause_binder
+        )
+
     async def select(
         self,
         **kwargs

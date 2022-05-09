@@ -133,6 +133,7 @@ class BaseQuery:
 
             if isinstance(value, BaseQuery):
                 mapping[field] = value.dict
+                continue
 
             mapping[field] = value
 

@@ -63,7 +63,11 @@ class FromRowQuery(BaseQuery):
         for field_name, mapping in nested_mappings.items():
             nested_query = cls.get_field_query(field_name=field_name)
             nested_query = nested_query._from_mapping(mapping=mapping)
-            setattr(query, field_name, nested_query)
+            setattr(query, field_name, None)
+            for value in nested_query.dict.values():
+                if value is not None:
+                    setattr(query, field_name, nested_query)
+                    break
 
         return query
 
