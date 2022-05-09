@@ -1,3 +1,4 @@
+from uuid import UUID
 from types import MappingProxyType
 from typing import Any, Mapping, Callable, Optional, Union
 from sqlalchemy.orm import DeclarativeMeta, InstrumentedAttribute
@@ -49,7 +50,8 @@ class StringClauseBuilder(BaseClauseBinder):
     def _get_column(
         self,
         lookup: str,
-        mapper: Union[DeclarativeMeta, AliasedClass]
+        mapper: Union[DeclarativeMeta, AliasedClass],
+        uuid: UUID,
     ) -> Optional[InstrumentedAttribute]:
         """
         lookup: meter_inline__directory__name__ilike: "%some_directory_name%"
@@ -68,8 +70,10 @@ class StringClauseBuilder(BaseClauseBinder):
                     lookup=self.LOOKUP_STRING.join(lookup_parts[i+1:]),
                     mapper=AliasedManager.get_or_create(
                         mapper=mapper,
-                        field_name=lookup_part
-                    )
+                        field_name=lookup_part,
+                        uuid=uuid,
+                    ),
+                    uuid=uuid,
                 )
 
     def _get_expression(
@@ -77,12 +81,14 @@ class StringClauseBuilder(BaseClauseBinder):
         lookup: str,
         value: Any,
         mapper: DeclarativeMeta,
+        uuid: UUID,
     ) -> Optional[BinaryExpression]:
         """
         """
         column = self._get_column(
             lookup=lookup,
-            mapper=mapper
+            mapper=mapper,
+            uuid=uuid,
         )
         if column is None:
             return
@@ -108,11 +114,13 @@ class StringClauseBuilder(BaseClauseBinder):
         value: Any,
         mapper: DeclarativeMeta,
         stmt: Union[Select, Insert, Update, Delete],
+        uuid: UUID,
     ) -> Select:
         expression = self._get_expression(
             lookup=lookup,
             value=value,
             mapper=mapper,
+            uuid=uuid,
         )
         if expression is None:
             return stmt

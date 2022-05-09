@@ -1,4 +1,5 @@
 from abc import abstractmethod
+from uuid import UUID
 from typing import Dict, Any, Optional, Union, Sequence
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import DeclarativeMeta
@@ -41,6 +42,7 @@ class BaseClauseBinder:
         value: Any,
         mapper: DeclarativeMeta,
         stmt: Union[Select, Insert, Update, Delete],
+        uuid: UUID,
     ) -> Select:
         pass
 
@@ -50,6 +52,7 @@ class BaseClauseBinder:
         lookup: str,
         value: Any,
         mapper: DeclarativeMeta,
+        uuid: UUID,
     ):
         pass
 
@@ -57,14 +60,16 @@ class BaseClauseBinder:
         self,
         clause: Dict[str, Any],
         mapper: DeclarativeMeta,
-        stmt: Union[Select, Insert, Update, Delete]
+        stmt: Union[Select, Insert, Update, Delete],
+        uuid: UUID,
     ) -> Select:
         for lookup, value in clause.items():
             stmt = self._bind_expressions(
                 lookup=lookup,
                 value=value,
                 mapper=mapper,
-                stmt=stmt
+                stmt=stmt,
+                uuid=uuid,
             )
 
         return stmt
@@ -75,6 +80,7 @@ class BaseClauseBinder:
         value: Any,
         mapper: DeclarativeMeta,
         stmt: Union[Select, Insert, Update, Delete],
+        uuid: UUID,
     ) -> Select:
         if self._is_self_method(lookup=lookup):
             return self._bind_self_method(
@@ -89,14 +95,16 @@ class BaseClauseBinder:
                 lookup=lookup,
                 value=value,
                 mapper=mapper,
-                stmt=stmt
+                stmt=stmt,
+                uuid=uuid,
             )
 
         return self._bind_string_expression_method(
             lookup=lookup,
             value=value,
             mapper=mapper,
-            stmt=stmt
+            stmt=stmt,
+            uuid=uuid,
         )
 
     def _bind_dict_value(
@@ -104,12 +112,14 @@ class BaseClauseBinder:
         lookup: str,
         value: Dict[str, Any],
         mapper: DeclarativeMeta,
-        stmt: Union[Select, Insert, Update, Delete]
+        stmt: Union[Select, Insert, Update, Delete],
+        uuid: UUID,
     ) -> Select:
         expression = self._get_dict_expression(
             lookup=lookup,
             value=value,
-            mapper=mapper
+            mapper=mapper,
+            uuid=uuid,
         )
         if expression is None:
             return stmt
@@ -124,6 +134,7 @@ class BaseClauseBinder:
         lookup: str,
         value: Dict[str, Any],
         mapper: DeclarativeMeta,
+        uuid: UUID,
     ) -> Optional[Union[BinaryExpression, Sequence[BinaryExpression]]]:
         if lookup in (self.AND_OPERATOR, self.OR_OPERATOR) \
                 and type(value) is not dict:
@@ -136,12 +147,14 @@ class BaseClauseBinder:
             return self._get_or_expression(
                 clause=value,
                 mapper=mapper,
+                uuid=uuid,
             )
 
         if lookup == self.AND_OPERATOR:
             return self._get_and_expression(
                 clause=value,
                 mapper=mapper,
+                uuid=uuid,
             )
 
         column = get_column(mapper=mapper, field_name=lookup)
@@ -150,19 +163,23 @@ class BaseClauseBinder:
                 return self._get_expressions(
                     clause=value,
                     mapper=AliasedManager.get_or_create(
+                        uuid=uuid,
                         mapper=mapper,
                         field_name=lookup
                     ),
+                    uuid=uuid,
                 )
 
     def _get_or_expression(
         self,
         clause: Dict[str, Any],
         mapper: DeclarativeMeta,
+        uuid: UUID,
     ) -> BinaryExpression:
         expressions = self._get_expressions(
             clause=clause,
             mapper=mapper,
+            uuid=uuid,
         )
         return or_(*expressions)
 
@@ -170,10 +187,12 @@ class BaseClauseBinder:
         self,
         clause: Dict[str, Any],
         mapper: DeclarativeMeta,
+        uuid: UUID,
     ) -> BinaryExpression:
         expressions = self._get_expressions(
             clause=clause,
             mapper=mapper,
+            uuid=uuid,
         )
         return and_(*expressions)
 
@@ -181,6 +200,7 @@ class BaseClauseBinder:
         self,
         clause: Dict[str, Any],
         mapper: Union[DeclarativeMeta, AliasedClass],
+        uuid: UUID,
     ) -> Sequence[BinaryExpression]:
         expressions = []
         for lookup, value in clause.items():
@@ -188,14 +208,16 @@ class BaseClauseBinder:
                 expressions.append(self._get_dict_expression(
                     lookup=lookup,
                     value=clause,
-                    mapper=mapper
+                    mapper=mapper,
+                    uuid=uuid,
                 ))
                 continue
 
             expressions.append(self._get_expression(
                 lookup=lookup,
                 value=value,
-                mapper=mapper
+                mapper=mapper,
+                uuid=uuid,
             ))
 
         return expressions

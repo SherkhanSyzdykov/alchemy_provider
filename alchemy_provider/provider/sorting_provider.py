@@ -1,13 +1,13 @@
 from sqlalchemy.orm import DeclarativeMeta, ColumnProperty
 from sqlalchemy.sql import Select, nullsfirst, nullslast
-from ..query.sorting_query import SortingQuery
+from ..query import CRUDQuery
 from .base import BaseProvider
 
 
 class SortingProvider(BaseProvider):
     def bind_sorting(
         self,
-        query: SortingQuery,
+        query: CRUDQuery,
         mapper: DeclarativeMeta,
         select_stmt: Select
     ) -> Select:

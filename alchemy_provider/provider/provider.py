@@ -1,8 +1,7 @@
-from typing import List, Dict, Any, Union, Optional, Sequence
+from typing import List, Optional, Sequence
 from sqlalchemy.orm import DeclarativeMeta
-from sqlalchemy.sql import Select, Insert, Update, Delete
 from ..clause_binder.clause_binder import ClauseBinder
-from ..query.query import AbstractQuery
+from ..query import CRUDQuery
 from .select_provider import SelectProvider
 from .insert_provider import InsertProvider
 from .update_provider import UpdateProvider
@@ -12,40 +11,29 @@ from .count_provider import CountProvider
 
 class Provider(
     CountProvider,
-    SelectProvider,
     InsertProvider,
     UpdateProvider,
+    SelectProvider,
     DeleteProvider,
 ):
-    def _bind_clause(
-        self,
-        clause: Dict[str, Any],
-        mapper: DeclarativeMeta,
-        stmt: Union[Select, Insert, Update, Delete],
-    ) -> Union[Select, Insert, Update, Delete]:
-        stmt = ClauseBinder().bind(
-            clause=clause,
-            mapper=mapper,
-            stmt=stmt,
-        )
-        return stmt
-
     async def select(
         self,
-        query: AbstractQuery,
-        mapper: DeclarativeMeta
-    ) -> List[AbstractQuery]:
+        query: CRUDQuery,
+        mapper: DeclarativeMeta,
+        clause_binder: ClauseBinder,
+    ) -> List[CRUDQuery]:
         return await self._select(
             query=query,
-            mapper=mapper
+            mapper=mapper,
+            clause_binder=clause_binder,
         )
 
     async def insert(
         self,
-        query: AbstractQuery,
+        query: CRUDQuery,
         mapper: DeclarativeMeta,
         returning: bool = True,
-    ) -> Optional[AbstractQuery]:
+    ) -> Optional[CRUDQuery]:
         return await self._insert(
             query=query,
             mapper=mapper,
@@ -54,10 +42,10 @@ class Provider(
 
     async def bulk_insert(
         self,
-        queries: Sequence[AbstractQuery],
+        queries: Sequence[CRUDQuery],
         mapper: DeclarativeMeta,
         returning: bool = True,
-    ) -> Optional[Sequence[AbstractQuery]]:
+    ) -> Optional[Sequence[CRUDQuery]]:
         return await self._bulk_insert(
             queries=queries,
             mapper=mapper,
@@ -66,10 +54,10 @@ class Provider(
 
     async def update(
         self,
-        query: AbstractQuery,
+        query: CRUDQuery,
         mapper: DeclarativeMeta,
         returning: bool = True,
-    ) -> Optional[Sequence[AbstractQuery]]:
+    ) -> Optional[Sequence[CRUDQuery]]:
         return await self._update(
             query=query,
             mapper=mapper,
@@ -78,7 +66,7 @@ class Provider(
 
     async def delete(
         self,
-        query: AbstractQuery,
+        query: CRUDQuery,
         mapper: DeclarativeMeta
     ):
         await self._delete(

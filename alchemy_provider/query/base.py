@@ -6,7 +6,7 @@ from .field import Field
 
 
 class BaseQuery:
-    _filters: Dict[str, Any] = dict()
+    _filters: Dict[str, Any]
 
     def __init__(self, **kwargs):
         self._set_attrs(**kwargs)
@@ -58,13 +58,14 @@ class BaseQuery:
         if cls_or_ins.is_class():
             self = cls_or_ins()
 
+        self._filters = getattr(self, '_filters', dict())
         self._set_values(self._filters, **kwargs)
 
         return self
 
     @cls_or_ins
     def get_class(cls_or_ins) -> Type[BaseQuery]:
-        if cls_or_ins.is_instance:
+        if cls_or_ins.is_instance():
             return cls_or_ins.__class__
 
         return cls_or_ins
@@ -132,6 +133,7 @@ class BaseQuery:
 
             if isinstance(value, BaseQuery):
                 mapping[field] = value.dict
+                continue
 
             mapping[field] = value
 
@@ -141,9 +143,6 @@ class BaseQuery:
         for field, value in kwargs.items():
             if value is ...:
                 value = None
-
-            if field not in self.get_type_hints():
-                continue
 
             attr_default = getattr(self, field, None)
             if isinstance(attr_default, Field):
