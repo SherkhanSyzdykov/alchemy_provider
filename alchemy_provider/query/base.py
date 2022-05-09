@@ -6,7 +6,7 @@ from .field import Field
 
 
 class BaseQuery:
-    _filters: Dict[str, Any] = dict()
+    _filters: Dict[str, Any]
 
     def __init__(self, **kwargs):
         self._set_attrs(**kwargs)
@@ -57,6 +57,7 @@ class BaseQuery:
         self = cls_or_ins
         if cls_or_ins.is_class():
             self = cls_or_ins()
+            self._filters = dict()
 
         self._set_values(self._filters, **kwargs)
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 from abc import abstractmethod
+from uuid import uuid4, UUID
 from typing import Union, Type, List, Optional
 from sqlalchemy import select
 from sqlalchemy.sql import Select, Insert
@@ -33,11 +34,14 @@ class SelectProvider(
         self,
         query: Union[Type[CRUDQuery], CRUDQuery],
         mapper: DeclarativeMeta,
-        clause_binder: ClauseBinder
+        clause_binder: ClauseBinder,
+        uuid: UUID = None,
     ) -> Select:
+        uuid = uuid or uuid4()
         select_stmt = self._make_simple_select_stmt(
             query=query,
-            mapper=mapper
+            mapper=mapper,
+            uuid=uuid,
         )
 
         select_stmt = self.bind_pagination(
@@ -56,10 +60,11 @@ class SelectProvider(
                 clause=query.get_filters(),
                 mapper=mapper,
                 stmt=select_stmt,
-                clause_binder=clause_binder
+                clause_binder=clause_binder,
+                uuid=uuid,
             )
 
-        AliasedManager.delete(id(select_stmt))
+        AliasedManager.delete(uuid=uuid)
 
         return select_stmt
 
@@ -89,6 +94,7 @@ class SelectProvider(
         mapper: Union[DeclarativeMeta, AliasedClass],
         label_prefix: Optional[str] = None,
         select_stmt: Optional[Select] = None,
+        uuid: UUID = None,
     ) -> Select:
 
         if select_stmt is None:
@@ -114,7 +120,7 @@ class SelectProvider(
 
             if isinstance(mapper_field.property, RelationshipProperty):
                 aliased_mapper = AliasedManager.get_or_create(
-                    stmt_id=id(select_stmt),
+                    uuid=uuid or uuid4(),
                     mapper=mapper,
                     field_name=field_name
                 )

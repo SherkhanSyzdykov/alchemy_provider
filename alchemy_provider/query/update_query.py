@@ -8,7 +8,7 @@ from .join_query import JoinQuery
 
 
 class UpdateQuery(FromRowQuery, JoinQuery, BaseQuery):
-    _values: Dict[str, Any] = dict()
+    _values: Dict[str, Any]
 
     @classmethod
     def get_values(cls) -> Dict[str, Any]:
@@ -19,6 +19,7 @@ class UpdateQuery(FromRowQuery, JoinQuery, BaseQuery):
         self = cls_or_ins
         if cls_or_ins.is_class():
             self = cls_or_ins()
+            self._values = dict()
 
         self._set_values(self._values, **kwargs)
 
