@@ -96,7 +96,7 @@ class InsertProvider(SelectProvider, BaseProvider):
         scalar_result = await self._session.execute(insert_stmt)
 
         if returning:
-            return query.from_selected_row(scalar_result.all())
+            return query.from_selected_row(scalar_result.first())
 
     async def _bulk_insert(
         self,

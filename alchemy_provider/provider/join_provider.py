@@ -18,9 +18,11 @@ class JoinProvider(BaseProvider):
         mapper_field = getattr(mapper, field_name)
         join_strategy = query.get_join_strategy(field_name=field_name)
 
-        return stmt.join(
+        stmt2 = stmt.join(
             aliased_mapper,
             onclause=mapper_field,
             isouter=join_strategy.is_outer,
             full=join_strategy.is_full
         )
+
+        return stmt2

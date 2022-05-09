@@ -5,7 +5,7 @@ from typing import Union, Type, List, Optional
 from sqlalchemy import select
 from sqlalchemy.sql import Select, Insert, Update
 from sqlalchemy.orm import DeclarativeMeta, ColumnProperty, \
-    RelationshipProperty, InstrumentedAttribute
+    RelationshipProperty, InstrumentedAttribute, aliased
 from sqlalchemy.orm.util import AliasedClass
 from ..clause_binder import ClauseBinder
 from ..query import CRUDQuery, FIELD_NAME_SEPARATOR
@@ -77,33 +77,16 @@ class SelectProvider(
     ) -> Select:
         uuid = uuid or uuid4()
 
-        returning_cte = None
-        column_name = None
-        column = None
-        for column_name, column in mapper.__dict__.items():
-            if not isinstance(column, InstrumentedAttribute):
-                continue
-
-            if not isinstance(column.property, ColumnProperty):
-                continue
-
-            if not column.primary_key:
-                continue
-
-            returning_cte = stmt.returning(column).cte()
-            break
-
-        if returning_cte is None:
-            raise ValueError(f'Mapper {mapper} has no primary key')
+        selectable_columns = self._get_selectable_columns(
+            mapper=mapper,
+        )
+        returning_cte_alias = stmt.returning(*selectable_columns).cte().alias()
+        aliased_mapper = aliased(mapper, alias=returning_cte_alias)
 
         select_stmt = self._make_simple_select_stmt(
             query=query.get_class(),
-            mapper=mapper,
+            mapper=aliased_mapper,
             uuid=uuid
-        )
-        select_stmt = select_stmt.join(
-            returning_cte,
-            column == getattr(returning_cte.columns, column_name)
         )
 
         AliasedManager.delete(uuid=uuid)
@@ -159,7 +142,6 @@ class SelectProvider(
             uuid=uuid,
         )
 
-
     def _make_simple_select_stmt(
         self,
         query: Type[CRUDQuery],
@@ -214,6 +196,22 @@ class SelectProvider(
                 )
 
         return select_stmt
+
+    @staticmethod
+    def _get_selectable_columns(
+        mapper: DeclarativeMeta
+    ) -> List[InstrumentedAttribute]:
+        columns = list()
+        for column_name, column in mapper.__dict__.items():
+            if not isinstance(column, InstrumentedAttribute):
+                continue
+
+            if not isinstance(column.property, ColumnProperty):
+                continue
+
+            columns.append(column)
+
+        return columns
 
     @staticmethod
     def _make_column_label(
