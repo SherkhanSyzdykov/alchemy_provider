@@ -12,8 +12,8 @@ from .count_provider import CountProvider
 class Provider(
     CountProvider,
     InsertProvider,
-    SelectProvider,
     UpdateProvider,
+    SelectProvider,
     DeleteProvider,
 ):
     async def select(

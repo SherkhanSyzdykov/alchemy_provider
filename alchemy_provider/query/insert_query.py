@@ -1,7 +1,7 @@
 from .base import BaseQuery
-from .from_row import FromRowQuery
+from .from_query import FromQuery
 from .join_query import JoinQuery
 
 
-class InsertQuery(FromRowQuery, JoinQuery, BaseQuery):
+class InsertQuery(FromQuery, JoinQuery, BaseQuery):
     pass

@@ -57,8 +57,8 @@ class BaseQuery:
         self = cls_or_ins
         if cls_or_ins.is_class():
             self = cls_or_ins()
-            self._filters = dict()
 
+        self._filters = getattr(self, '_filters', dict())
         self._set_values(self._filters, **kwargs)
 
         return self

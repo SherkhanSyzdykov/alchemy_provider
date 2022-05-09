@@ -1,14 +1,16 @@
 from abc import abstractmethod
+from uuid import uuid4
 from typing import Any, Dict, Sequence, Optional, Union, Type
 from sqlalchemy.orm import DeclarativeMeta, ColumnProperty
 from sqlalchemy.sql import update, Update
 from ..clause_binder import ClauseBinder
 from ..query import CRUDQuery
+from ..utils import AliasedManager
 from .base import BaseProvider
-from .join_provider import JoinProvider
+from .select_provider import SelectProvider
 
 
-class UpdateProvider(JoinProvider, BaseProvider):
+class UpdateProvider(SelectProvider, BaseProvider):
     @abstractmethod
     async def update(self, *args, **kwargs):
         pass
@@ -32,12 +34,15 @@ class UpdateProvider(JoinProvider, BaseProvider):
         clause_binder: ClauseBinder,
         returning: bool = True
     ) -> Update:
+        uuid = uuid4()
+
         update_stmt = update(mapper)
         update_stmt = self._bind_clause(
             clause=query.get_filters(),
             mapper=mapper,
             stmt=update_stmt,
-            clause_binder=clause_binder
+            clause_binder=clause_binder,
+            uuid=uuid,
         )
 
         updatable_values = self.__make_updatable_values(
@@ -51,10 +56,18 @@ class UpdateProvider(JoinProvider, BaseProvider):
 
         update_stmt = update_stmt.values(**updatable_values)
 
+        result_stmt = update_stmt
         if returning:
-            update_stmt = update_stmt.returning(mapper)
+            result_stmt = self._make_select_from_update(
+                query=query,
+                update_stmt=update_stmt,
+                mapper=mapper,
+                uuid=uuid,
+            )
 
-        return update_stmt
+        AliasedManager.delete(uuid=uuid)
+
+        return result_stmt
 
     @staticmethod
     def _query_from_kwargs(
@@ -122,7 +135,7 @@ class UpdateProvider(JoinProvider, BaseProvider):
         if not returning:
             return
 
-        return query.from_returning_mappers(scalar_result.all())
+        return query.from_selected_rows(scalar_result.all())
 
     async def _update_from_query(
         self,
@@ -143,7 +156,7 @@ class UpdateProvider(JoinProvider, BaseProvider):
         if not returning:
             return
 
-        return query.from_returning_mappers(scalar_result.all())
+        return query.from_selected_rows(scalar_result.all())
 
     @staticmethod
     def __make_updatable_values(

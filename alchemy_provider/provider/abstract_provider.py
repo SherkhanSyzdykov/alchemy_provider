@@ -15,8 +15,8 @@ class AbstractProvider(
     ABC,
     CountProvider,
     InsertProvider,
-    SelectProvider,
     UpdateProvider,
+    SelectProvider,
     DeleteProvider,
 ):
     _mapper: DeclarativeMeta

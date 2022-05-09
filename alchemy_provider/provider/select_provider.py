@@ -3,7 +3,7 @@ from abc import abstractmethod
 from uuid import uuid4, UUID
 from typing import Union, Type, List, Optional
 from sqlalchemy import select
-from sqlalchemy.sql import Select, Insert
+from sqlalchemy.sql import Select, Insert, Update
 from sqlalchemy.orm import DeclarativeMeta, ColumnProperty, \
     RelationshipProperty, InstrumentedAttribute
 from sqlalchemy.orm.util import AliasedClass
@@ -68,6 +68,48 @@ class SelectProvider(
 
         return select_stmt
 
+    def _make_select_from_stmt(
+        self,
+        query: CRUDQuery,
+        stmt: Union[Insert, Update],
+        mapper: DeclarativeMeta,
+        uuid: Optional[UUID] = None,
+    ) -> Select:
+        uuid = uuid or uuid4()
+
+        returning_cte = None
+        column_name = None
+        column = None
+        for column_name, column in mapper.__dict__.items():
+            if not isinstance(column, InstrumentedAttribute):
+                continue
+
+            if not isinstance(column.property, ColumnProperty):
+                continue
+
+            if not column.primary_key:
+                continue
+
+            returning_cte = stmt.returning(column).cte()
+            break
+
+        if returning_cte is None:
+            raise ValueError(f'Mapper {mapper} has no primary key')
+
+        select_stmt = self._make_simple_select_stmt(
+            query=query.get_class(),
+            mapper=mapper,
+            uuid=uuid
+        )
+        select_stmt = select_stmt.join(
+            returning_cte,
+            column == getattr(returning_cte.columns, column_name)
+        )
+
+        AliasedManager.delete(uuid=uuid)
+
+        return select_stmt
+
     def _make_select_from_insert(
         self,
         query: CRUDQuery,
@@ -85,39 +127,38 @@ class SelectProvider(
         join inserted_cte on test.id = inserted_cte.id
         join test2 on test.test2_id = test2.id
         """
-        returning_cte = None
-        column_name = None
-        column = None
-        for column_name, column in mapper.__dict__.items():
-            if not isinstance(column, InstrumentedAttribute):
-                continue
-
-            if not isinstance(column.property, ColumnProperty):
-                continue
-
-            if not column.primary_key:
-                continue
-
-            returning_cte = insert_stmt.returning(column).cte()
-            break
-
-        if returning_cte is None:
-            raise ValueError(f'Mapper {mapper} has no primary key')
-
-        uuid = uuid4()
-        select_stmt = self._make_simple_select_stmt(
-            query=query.get_class(),
+        return self._make_select_from_stmt(
+            query=query,
+            stmt=insert_stmt,
             mapper=mapper,
-            uuid=uuid
-        )
-        select_stmt = select_stmt.join(
-            returning_cte,
-            column == getattr(returning_cte.columns, column_name)
         )
 
-        AliasedManager.delete(uuid=uuid)
+    def _make_select_from_update(
+        self,
+        query: CRUDQuery,
+        update_stmt: Update,
+        mapper: DeclarativeMeta,
+        uuid: UUID,
+    ) -> Select:
+        """
+        with updated_cte as (
+            update test
+            set name = 'some_new_name'
+            where id >= 1
+            returning id
+        )
+        select test.*, test2.*
+        from test
+        join updated_cte on test.id = updated_cte.id
+        join test2 on test.test2_id = test2.id
+        """
+        return self._make_select_from_stmt(
+            query=query,
+            stmt=update_stmt,
+            mapper=mapper,
+            uuid=uuid,
+        )
 
-        return select_stmt
 
     def _make_simple_select_stmt(
         self,

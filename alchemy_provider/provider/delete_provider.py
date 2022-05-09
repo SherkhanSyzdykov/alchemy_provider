@@ -1,8 +1,10 @@
 from abc import abstractmethod
+from uuid import uuid4
 from sqlalchemy.orm import DeclarativeMeta
 from sqlalchemy.sql import delete, Delete
 from ..clause_binder import ClauseBinder
 from ..query import CRUDQuery
+from ..utils import AliasedManager
 from .base import BaseProvider
 
 
@@ -22,12 +24,17 @@ class DeleteProvider(BaseProvider):
         clause_binder: ClauseBinder
     ) -> Delete:
         delete_stmt = delete(mapper)
+
+        uuid = uuid4()
         delete_stmt = self._bind_clause(
             clause=query.get_filters(),
             mapper=mapper,
             stmt=delete_stmt,
-            clause_binder=clause_binder
+            clause_binder=clause_binder,
+            uuid=uuid,
         )
+        AliasedManager.delete(uuid=uuid)
+
         return delete_stmt
 
     async def _delete(

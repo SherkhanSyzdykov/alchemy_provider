@@ -8,9 +8,9 @@ from .base import BaseQuery
 FIELD_NAME_SEPARATOR = '__'
 
 
-class FromRowQuery(BaseQuery):
+class FromQuery(BaseQuery):
     @classmethod
-    def from_returning_mapper(
+    def from_mapper(
         cls,
         mapper: DeclarativeMeta
     ) -> BaseQuery:
@@ -22,13 +22,13 @@ class FromRowQuery(BaseQuery):
         return query
 
     @classmethod
-    def from_returning_mappers(
+    def from_mappers(
         cls,
         mappers: List[DeclarativeMeta]
     ) -> List[BaseQuery]:
         queries = list()
         for mapper in mappers:
-            query = cls.from_returning_mapper(mapper=mapper)
+            query = cls.from_mapper(mapper=mapper)
             queries.append(query)
 
         return queries
