@@ -65,7 +65,7 @@ class BaseQuery:
 
     @cls_or_ins
     def get_class(cls_or_ins) -> Type[BaseQuery]:
-        if cls_or_ins.is_instance:
+        if cls_or_ins.is_instance():
             return cls_or_ins.__class__
 
         return cls_or_ins

@@ -68,33 +68,64 @@ class SelectProvider(
 
         return select_stmt
 
-    def __make_select_from_insert(
+    def _make_select_from_insert(
         self,
         query: CRUDQuery,
-        insert_stmt: Insert
+        insert_stmt: Insert,
+        mapper: DeclarativeMeta,
     ) -> Select:
         """
-        Will be added in future version
-
-        with inserted as (
-            insert intoROW_MAP_FORMAT.format(
-                        query.get_name(), field_name
-                    ) test2(name, description, test_id) values
-            ('test2_name1', 'test2_description1', 1)
-            returning *
+        with inserted_cte as (
+            insert into test(id, name) values
+            (1, 'some_name')
+            returning id
         )
-        select inserted.*, test.*
-        from inserted left outer join test on inserted.test_id = test.id
+        select test.*, test2.*
+        from test
+        join inserted_cte on test.id = inserted_cte.id
+        join test2 on test.test2_id = test2.id
         """
-        raise NotImplementedError
+        returning_cte = None
+        column_name = None
+        column = None
+        for column_name, column in mapper.__dict__.items():
+            if not isinstance(column, InstrumentedAttribute):
+                continue
+
+            if not isinstance(column.property, ColumnProperty):
+                continue
+
+            if not column.primary_key:
+                continue
+
+            returning_cte = insert_stmt.returning(column).cte()
+            break
+
+        if returning_cte is None:
+            raise ValueError(f'Mapper {mapper} has no primary key')
+
+        uuid = uuid4()
+        select_stmt = self._make_simple_select_stmt(
+            query=query.get_class(),
+            mapper=mapper,
+            uuid=uuid
+        )
+        select_stmt = select_stmt.join(
+            returning_cte,
+            column == getattr(returning_cte.columns, column_name)
+        )
+
+        AliasedManager.delete(uuid=uuid)
+
+        return select_stmt
 
     def _make_simple_select_stmt(
         self,
         query: Type[CRUDQuery],
         mapper: Union[DeclarativeMeta, AliasedClass],
+        uuid: UUID,
         label_prefix: Optional[str] = None,
         select_stmt: Optional[Select] = None,
-        uuid: UUID = None,
     ) -> Select:
 
         if select_stmt is None:
@@ -120,7 +151,7 @@ class SelectProvider(
 
             if isinstance(mapper_field.property, RelationshipProperty):
                 aliased_mapper = AliasedManager.get_or_create(
-                    uuid=uuid or uuid4(),
+                    uuid=uuid,
                     mapper=mapper,
                     field_name=field_name
                 )
@@ -136,8 +167,9 @@ class SelectProvider(
                 select_stmt = self._make_simple_select_stmt(
                     select_stmt=select_stmt,
                     query=query.get_field_query(field_name),
+                    uuid=uuid,
                     mapper=aliased_mapper,
-                    label_prefix=field_name
+                    label_prefix=field_name,
                 )
 
         return select_stmt

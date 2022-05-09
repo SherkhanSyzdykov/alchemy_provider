@@ -14,8 +14,8 @@ from .count_provider import CountProvider
 class AbstractProvider(
     ABC,
     CountProvider,
-    SelectProvider,
     InsertProvider,
+    SelectProvider,
     UpdateProvider,
     DeleteProvider,
 ):
@@ -58,6 +58,7 @@ class AbstractProvider(
         returning: bool = True,
     ) -> Insert:
         return self._make_bulk_insert_stmt(
+            query=self._query_type,
             values_seq=values_seq,
             mapper=self._mapper,
             returning=returning

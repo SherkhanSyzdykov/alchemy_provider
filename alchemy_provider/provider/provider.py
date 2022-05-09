@@ -11,8 +11,8 @@ from .count_provider import CountProvider
 
 class Provider(
     CountProvider,
-    SelectProvider,
     InsertProvider,
+    SelectProvider,
     UpdateProvider,
     DeleteProvider,
 ):
