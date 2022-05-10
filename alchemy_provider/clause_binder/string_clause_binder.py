@@ -60,9 +60,16 @@ class StringClauseBuilder(BaseClauseBinder):
         cls,
         lookup: str
     ) -> Callable[[InstrumentedAttribute, _value_type], BinaryExpression]:
-        if lookup not in cls.LOOKUP_OPERATORS:
+        if not lookup:
+            lookup = cls.EQUAL_OPERATOR
+
+        lookup_parts = lookup.split(cls.LOOKUP_STRING)
+        lookup_operator = lookup_parts[-1]
+
+        if lookup_operator not in cls.LOOKUP_OPERATORS:
             raise KeyError(
-                f'{lookup=} not in {cls.LOOKUP_OPERATORS.keys()}'
+                f'{lookup=} with {lookup_operator} '
+                f'not in {cls.LOOKUP_OPERATORS.keys()}'
             )
         return cls.LOOKUP_OPERATORS.get(lookup)
 
