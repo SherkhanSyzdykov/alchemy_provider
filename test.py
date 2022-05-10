@@ -1,5 +1,6 @@
 import asyncio
 from typing import Union, Optional
+from sqlalchemy import *
 from sqlalchemy.ext.asyncio import AsyncSession, async_scoped_session
 from sqlalchemy.ext.asyncio import create_async_engine
 import mapper
@@ -10,33 +11,27 @@ from alchemy_provider.query import AbstractQuery, JoinStrategy
 from alchemy_provider.utils.aliased_manager import AliasedManager
 
 
-
 class BaseQuery(AbstractQuery):
     limit: int = 25
     offset: int = 0
 
-
 class DeviceTypeQuery(BaseQuery, domain.DeviceType):
-    pass
-
+    __query_mapper__ = mapper.DeviceType
 
 class ResourceQuery(BaseQuery, domain.Resource):
-    pass
-
+    __query_mapper__ = mapper.Resource
 
 class FieldQuery(BaseQuery, domain.Field):
-    pass
-
+    __query_mapper__ = mapper.Field
 
 class MeterTypeQuery(BaseQuery, domain.MeterType):
-    pass
-
+    __query_mapper__ = mapper.MeterType
 
 class CustomerQuery(BaseQuery, domain.Customer):
-    pass
-
+    __query_mapper__ = mapper.Customer
 
 class MountEventQuery(BaseQuery, domain.MountEvent):
+    __query_mapper__ = mapper.MountEvent
 
     device_type: Optional[DeviceTypeQuery] = JoinStrategy(is_outer=True)
     resource: Optional[ResourceQuery] = JoinStrategy(is_outer=True)
@@ -45,10 +40,8 @@ class MountEventQuery(BaseQuery, domain.MountEvent):
     mounted_by: Optional[CustomerQuery]
     updated_by: Optional[CustomerQuery] = JoinStrategy(is_outer=True)
 
-
 class MountEventClauseBinder(ClauseBinder):
     pass
-
 
 class MountEventProvider(AbstractProvider):
     _mapper = mapper.MountEvent
@@ -85,37 +78,21 @@ select_kwargs = dict(
 )
 
 
-async def main():id__g=1,
-        status__in=[1, 2],
-        device_type__name__ilike='%some_name%',
-        device_type={
-            'id__l': 100,
-            'description__ilike': '%desc%'
-        },
-        meter_type={
-            'id__lt': 2,
-            'name__like': '%sdfsdf%'
-        },
-        meter_type__description__ilike='%asdfsdf%',
-        mounted_by__name__ilike='%sdfsdf%',
-        mounted_by__name__in=['some_name'],
-        mounted_by__type__in=[1, 2],
-        limit=1,
-        offset=2
+async def main():
     provider = MountEventProvider()
 
-    count = await provider.select_count(
-        **select_kwargs
-    )
+    stmt = select(
+        mapper.MountEvent, mapper.DeviceType
+    ).join(mapper.MountEvent.device_type).limit(5)
 
-    selected = await provider.select(
-        **select_kwargs
-    )
+    result = await provider.session.execute(stmt)
+
+    query = await MountEventQuery.from_mappers_tuple_list(result.all())
 
     await provider.session.rollback()
     await provider.session.close()
 
-    return count, selected
+    return query
 
 
 res = asyncio.run(main())
