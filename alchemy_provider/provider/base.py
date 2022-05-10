@@ -14,8 +14,8 @@ class BaseProvider:
     def _session(self) -> Union[AsyncSession, async_scoped_session]:
         pass
 
+    @staticmethod
     def _bind_clause(
-        self,
         clause: Dict[str, Any],
         stmt: Union[Select, Insert, Update, Delete],
         mapper: DeclarativeMeta,
@@ -27,4 +27,17 @@ class BaseProvider:
             stmt=stmt,
             mapper=mapper,
             uuid=uuid,
+        )
+
+    @staticmethod
+    def _bind_simple_clause(
+        clause: Dict[str, Any],
+        stmt: Union[Select, Insert, Update, Delete],
+        mapper: DeclarativeMeta,
+        clause_binder: ClauseBinder,
+    ) -> Union[Select, Insert, Update, Delete]:
+        return clause_binder.simple_bind(
+            clause=clause,
+            stmt=stmt,
+            mapper=mapper,
         )

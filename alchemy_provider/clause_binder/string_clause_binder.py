@@ -26,7 +26,7 @@ class StringClauseBuilder(BaseClauseBinder):
         float,
         str,
         bool,
-        Sequence[int, float, str, bool],
+        Sequence[Union[int, float, str, bool]],
     ]
 
     LOOKUP_OPERATORS: Mapping[

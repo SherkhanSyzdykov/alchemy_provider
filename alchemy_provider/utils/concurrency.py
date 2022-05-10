@@ -9,9 +9,9 @@ async def run_concurrently(
     To avoid transaction exception that can be raised with running
     request to db concurrently
     """
-    result = await asyncio.gather(*aws, return_exceptions=True)
+    result = await asyncio.gather(*aws, return_exceptions=False)
     for item in result:
-        if issubclass(item, BaseException) or isinstance(item, BaseException):
+        if isinstance(item, BaseException):
             raise item
 
     return result

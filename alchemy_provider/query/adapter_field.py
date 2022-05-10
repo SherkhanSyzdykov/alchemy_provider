@@ -3,11 +3,17 @@ from typing import Any, Callable, Coroutine, Union
 
 
 class AdapterField:
-    _adapter: Union[Callable[[Any], Any], Callable[[Any], Coroutine[Any]]]
+    _adapter: Union[
+        Callable[[Any], Any],
+        Callable[[Any], Coroutine[Any, None, None]]
+    ]
 
     def __init__(
         self,
-        adapter: Union[Callable[[Any], Any], Callable[[Any], Coroutine[Any]]],
+        adapter: Union[
+            Callable[[Any], Any],
+            Callable[[Any], Coroutine[Any, None, None]]
+        ],
     ):
         self._adapter = adapter
 

@@ -2,7 +2,7 @@ from abc import abstractmethod
 from uuid import UUID
 from typing import Dict, Any, Optional, Union, Sequence
 from sqlalchemy import and_, or_
-from sqlalchemy.orm import DeclarativeMeta
+from sqlalchemy.orm import DeclarativeMeta, ColumnProperty
 from sqlalchemy.orm.util import AliasedClass
 from sqlalchemy.sql import Select, Insert, Update, Delete
 from sqlalchemy.sql.expression import BinaryExpression
@@ -16,6 +16,10 @@ class BaseClauseBinder:
 
     @abstractmethod
     def bind(self, *args, **kwargs):
+        pass
+
+    @abstractmethod
+    def simple_bind(self, *args, **kwargs):
         pass
 
     @abstractmethod
@@ -62,7 +66,7 @@ class BaseClauseBinder:
         mapper: DeclarativeMeta,
         stmt: Union[Select, Insert, Update, Delete],
         uuid: UUID,
-    ) -> Select:
+    ) -> Union[Select, Insert, Update, Delete]:
         for lookup, value in clause.items():
             stmt = self._bind_expressions(
                 lookup=lookup,
@@ -74,13 +78,38 @@ class BaseClauseBinder:
 
         return stmt
 
+    def _simple_bind(
+        self,
+        clause: Dict[str, Any],
+        mapper: DeclarativeMeta,
+        stmt: Union[Select, Insert, Update, Delete],
+    ) -> Union[Select, Insert, Update, Delete]:
+        for lookup, value in clause.items():
+            column_name, *_ = lookup.split(self.LOOKUP_STRING)
+            mapper_field = getattr(mapper, column_name, None)
+
+            if mapper_field is None:
+                continue
+
+            if not isinstance(mapper_field.property, ColumnProperty):
+                continue
+
+            stmt = self._bind_expressions(
+                lookup=lookup,
+                value=value,
+                mapper=mapper,
+                stmt=stmt,
+            )
+
+        return stmt
+
     def _bind_expressions(
         self,
         lookup: str,
         value: Any,
         mapper: DeclarativeMeta,
         stmt: Union[Select, Insert, Update, Delete],
-        uuid: UUID,
+        uuid: UUID = None,
     ) -> Select:
         if self._is_self_method(lookup=lookup):
             return self._bind_self_method(

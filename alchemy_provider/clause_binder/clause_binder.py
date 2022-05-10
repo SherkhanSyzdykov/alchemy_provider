@@ -20,3 +20,15 @@ class ClauseBinder(SelfMethodBinder, StringClauseBuilder):
             stmt=stmt,
             uuid=uuid,
         )
+
+    def simple_bind(
+        self,
+        clause: Dict[str, Any],
+        mapper: DeclarativeMeta,
+        stmt: Union[Select, Insert, Update, Delete],
+    ) -> Union[Select, Insert, Update, Delete]:
+        return self._simple_bind(
+            clause=clause,
+            mapper=mapper,
+            stmt=stmt,
+        )

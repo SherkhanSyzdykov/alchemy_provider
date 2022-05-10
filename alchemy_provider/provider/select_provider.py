@@ -38,7 +38,7 @@ class SelectProvider(
         uuid: UUID = None,
     ) -> Select:
         uuid = uuid or uuid4()
-        select_stmt = self._make_simple_select_stmt(
+        select_stmt = self._make_base_select_stmt(
             query=query,
             mapper=mapper,
             uuid=uuid,
@@ -83,7 +83,7 @@ class SelectProvider(
         returning_cte_alias = stmt.returning(*selectable_columns).cte().alias()
         aliased_mapper = aliased(mapper, alias=returning_cte_alias)
 
-        select_stmt = self._make_simple_select_stmt(
+        select_stmt = self._make_base_select_stmt(
             query=query.get_class(),
             mapper=aliased_mapper,
             uuid=uuid
@@ -142,7 +142,7 @@ class SelectProvider(
             uuid=uuid,
         )
 
-    def _make_simple_select_stmt(
+    def _make_base_select_stmt(
         self,
         query: Type[CRUDQuery],
         mapper: Union[DeclarativeMeta, AliasedClass],
@@ -187,13 +187,42 @@ class SelectProvider(
                     aliased_mapper=aliased_mapper,
                 )
 
-                select_stmt = self._make_simple_select_stmt(
+                select_stmt = self._make_base_select_stmt(
                     select_stmt=select_stmt,
                     query=query.get_field_query(field_name),
                     uuid=uuid,
                     mapper=aliased_mapper,
                     label_prefix=field_name,
                 )
+
+        return select_stmt
+
+    def _make_simple_select(
+        self,
+        query: Union[Type[CRUDQuery], CRUDQuery],
+        mapper: Union[DeclarativeMeta, AliasedClass],
+        clause_binder: ClauseBinder,
+    ) -> Select:
+        select_stmt = select(mapper)
+
+        select_stmt = self.bind_pagination(
+            query=query,
+            select_stmt=select_stmt
+        )
+
+        select_stmt = self.bind_sorting(
+            query=query,
+            mapper=mapper,
+            select_stmt=select_stmt,
+        )
+
+        if query.is_instance():
+            select_stmt = self._bind_simple_clause(
+                clause=query.get_filters(),
+                mapper=mapper,
+                stmt=select_stmt,
+                clause_binder=clause_binder,
+            )
 
         return select_stmt
 

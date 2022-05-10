@@ -2,14 +2,17 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any, get_type_hints, Type, get_args, Tuple, Dict
 from ..utils import cls_or_ins
-from .adapter_field import Field
 
 
 class BaseQuery:
     _filters: Dict[str, Any]
 
     def __init__(self, **kwargs):
-        self._set_attrs(**kwargs)
+        for field, value in kwargs.items():
+            if value is ...:
+                continue
+
+            setattr(self, field, value)
 
     @staticmethod
     def _set_values(mapping: Dict[str, Any], **kwargs):
@@ -83,6 +86,27 @@ class BaseQuery:
         return get_type_hints(class_)
 
     @classmethod
+    def is_field_query(cls, field_name: str) -> bool:
+        try:
+            cls.get_field_query(field_name)
+            return True
+        except KeyError:
+            return False
+
+    @classmethod
+    def is_nested_query(cls, query: BaseQuery) -> bool:
+        type_hints = cls.get_type_hints()
+        for field_name, type_hint in type_hints.items():
+            if not cls.is_field_query(field_name=field_name):
+                continue
+
+            nested_query = cls.get_field_query(field_name=field_name)
+            if isinstance(query, nested_query):
+                return True
+
+        return False
+
+    @classmethod
     def get_field_query(cls, field_name: str) -> Type[BaseQuery]:
         field_type_hint = cls.get_type_hints().get(field_name)
         if field_type_hint is None:
@@ -139,14 +163,12 @@ class BaseQuery:
 
         return mapping
 
-    def _set_attrs(self, **kwargs):
-        for field, value in kwargs.items():
-            if value is ...:
-                value = None
-
-            attr_default = getattr(self, field, None)
-            if isinstance(attr_default, Field):
-                setattr(self, field, attr_default(value))
+    def put_query(self, query: BaseQuery):
+        type_hints = self.get_type_hints()
+        for field_name, type_hint in type_hints.items():
+            if not self.is_field_query(field_name=field_name):
                 continue
 
-            setattr(self, field, value)
+            nested_query = self.get_field_query(field_name=field_name)
+            if isinstance(query, nested_query):
+                setattr(self, field_name, query)
