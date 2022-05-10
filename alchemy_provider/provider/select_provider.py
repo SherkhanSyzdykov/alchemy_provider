@@ -203,7 +203,8 @@ class SelectProvider(
         mapper: Union[DeclarativeMeta, AliasedClass],
         clause_binder: ClauseBinder,
     ) -> Select:
-        select_stmt = select(mapper)
+        columns = self._get_selectable_columns(mapper=mapper)
+        select_stmt = select(*columns)
 
         select_stmt = self.bind_pagination(
             query=query,
