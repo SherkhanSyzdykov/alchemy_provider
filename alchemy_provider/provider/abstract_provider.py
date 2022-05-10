@@ -4,6 +4,7 @@ from sqlalchemy.orm import DeclarativeMeta
 from sqlalchemy.sql import Select, Insert, Update, Delete
 from ..clause_binder import ClauseBinder
 from ..query import CRUDQuery
+from .get_provider import GetProvider
 from .select_provider import SelectProvider
 from .insert_provider import InsertProvider
 from .update_provider import UpdateProvider
@@ -13,6 +14,7 @@ from .count_provider import CountProvider
 
 class AbstractProvider(
     ABC,
+    GetProvider,
     CountProvider,
     InsertProvider,
     UpdateProvider,
@@ -20,15 +22,15 @@ class AbstractProvider(
     DeleteProvider,
 ):
     _mapper: DeclarativeMeta
-    _clause_binder: ClauseBinder
     _query_type: Type[CRUDQuery]
+    _clause_binder: ClauseBinder = ClauseBinder()
 
     def make_select_stmt(
         self,
         **kwargs
     ) -> Select:
         return self._make_select_stmt(
-            query=self._query_type.set_filters(**kwargs),
+            query=self._query_type.set_filters(**kwargs).set_sorters(**kwargs),
             mapper=self._mapper,
             clause_binder=self._clause_binder
         )
@@ -48,7 +50,7 @@ class AbstractProvider(
         **kwargs,
     ) -> Insert:
         return self._make_insert_stmt(
-            query=self._query_type(**kwargs),
+            query=self._query_type(**kwargs).set_sorters(**kwargs),
             mapper=self._mapper
         )
 
@@ -56,9 +58,10 @@ class AbstractProvider(
         self,
         values_seq: Sequence[Dict[str, Any]],
         returning: bool = True,
+        **kwargs
     ) -> Insert:
         return self._make_bulk_insert_stmt(
-            query=self._query_type,
+            query=self._query_type.set_sorters(**kwargs),
             values_seq=values_seq,
             mapper=self._mapper,
             returning=returning
@@ -68,10 +71,12 @@ class AbstractProvider(
         self,
         filters: Dict[str, Any],
         values: Dict[str, Any],
-        returning: bool = True
+        returning: bool = True,
+        **kwargs,
     ) -> Update:
         return self._make_update_stmt(
-            query=self._query_type.set_filters(**filters).set_values(**values),
+            query=self._query_type.set_filters(
+                **filters).set_values(**values).set_sorters(**kwargs),
             mapper=self._mapper,
             clause_binder=self._clause_binder,
             returning=returning
@@ -83,7 +88,7 @@ class AbstractProvider(
         **kwargs
     ) -> Update:
         return self._make_update_stmt_from_kwargs(
-            query=self._query_type,
+            query=self._query_type.set_sorters(**kwargs),
             mapper=self._mapper,
             clause_binder=self._clause_binder,
             returning=returning,
@@ -112,9 +117,19 @@ class AbstractProvider(
         **kwargs
     ) -> List[CRUDQuery]:
         return await self._select(
-            query=self._query_type.set_filters(**kwargs),
+            query=self._query_type.set_filters(**kwargs).set_sorters(**kwargs),
             mapper=self._mapper,
             clause_binder=self._clause_binder
+        )
+
+    async def get(
+        self,
+        **kwargs
+    ):
+        return await self._get(
+            query=self._query_type.set_filters(**kwargs),
+            mapper=self._mapper,
+            clause_binder=self._clause_binder,
         )
 
     async def insert(
@@ -123,7 +138,7 @@ class AbstractProvider(
         **kwargs
     ) -> Optional[CRUDQuery]:
         return await self._insert(
-            query=self._query_type(**kwargs),
+            query=self._query_type(**kwargs).set_sorters(**kwargs),
             mapper=self._mapper,
             returning=returning
         )
@@ -132,9 +147,10 @@ class AbstractProvider(
         self,
         values_seq: Sequence[Dict[str, Any]],
         returning: bool = True,
+        **kwargs
     ) -> Optional[Sequence[CRUDQuery]]:
         return await self._bulk_insert(
-            query=self._query_type,
+            query=self._query_type.set_sorters(**kwargs),
             values_seq=values_seq,
             mapper=self._mapper,
             returning=returning
@@ -146,7 +162,7 @@ class AbstractProvider(
         **kwargs,
     ) -> Optional[Sequence[CRUDQuery]]:
         return await self._update(
-            query=self._query_type,
+            query=self._query_type.set_sorters(**kwargs),
             mapper=self._mapper,
             clause_binder=self._clause_binder,
             returning=returning,
@@ -158,9 +174,11 @@ class AbstractProvider(
         filters: Dict[str, Any],
         values: Dict[str, Any],
         returning: bool = True,
+        **kwargs
     ) -> Optional[Sequence[CRUDQuery]]:
         return await self._update_from_query(
-            query=self._query_type().set_filters(**filters).set_values(**values),
+            query=self._query_type().set_filters(
+                **filters).set_values(**values).set_sorters(**kwargs),
             mapper=self._mapper,
             clause_binder=self._clause_binder,
             returning=returning

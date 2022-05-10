@@ -1,36 +1,49 @@
-from sqlalchemy.orm import DeclarativeMeta, ColumnProperty
+from typing import Sequence, Union
+from sqlalchemy.orm import DeclarativeMeta, ColumnProperty, InstrumentedAttribute
 from sqlalchemy.sql import Select, nullsfirst, nullslast
-from ..query import CRUDQuery
+from ..query import CRUDQuery, SortingField
 from .base import BaseProvider
 
 
 class SortingProvider(BaseProvider):
+    _sorting_fields: Sequence[str] = None
+
     def bind_sorting(
         self,
         query: CRUDQuery,
         mapper: DeclarativeMeta,
         select_stmt: Select
     ) -> Select:
-        if query.order_by is None:
+        if query.sort_by is None:
             return select_stmt
 
-        mapper_field = getattr(mapper, query.order_by, None)
-        if mapper_field is None:
+        return self._bind_sorting(
+            sorting_field=query.sort_by,
+            mapper=mapper,
+            select_stmt=select_stmt
+        )
+
+    def _bind_sorting(
+        self,
+        sorting_field: Union[SortingField, Sequence[SortingField]],
+        mapper: DeclarativeMeta,
+        select_stmt: Select
+    ) -> Select:
+        if isinstance(sorting_field, Sequence):
+            for sort_by in sorting_field:
+                select_stmt = self._bind_sorting(
+                    sorting_field=sort_by,
+                    mapper=mapper,
+                    select_stmt=select_stmt
+                )
             return select_stmt
 
-        if mapper_field.property is not ColumnProperty:
-            return select_stmt
+        if self._sorting_fields is not None:
+            if sorting_field.order_by not in self._sorting_fields:
+                raise KeyError(
+                    f'Order by field {sorting_field.order_by} '
+                    f'not in {self._sorting_fields}'
+                )
 
-        sorting_column = mapper_field.desc() \
-            if query.reversed else mapper_field.ack()
-
-        if query.nulls_place is None:
-            return select_stmt.order_by(sorting_column)
-
-        if query.nulls_place == 'first':
-            return select_stmt.order_by(nullsfirst(sorting_column))
-
-        if query.nulls_place == 'last':
-            return select_stmt.order_by(nullslast(sorting_column))
-
-        return select_stmt
+        sorting_column = sorting_field.make_sorting_column(mapper=mapper)
+        return select_stmt.order_by(sorting_column)

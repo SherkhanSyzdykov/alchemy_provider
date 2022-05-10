@@ -1,7 +1,9 @@
 from __future__ import annotations
-from typing import List, Any, Dict
+from typing import List, Any, Dict, Optional
 from sqlalchemy.engine.row import Row
 from sqlalchemy.orm import DeclarativeMeta
+from ..utils import run_concurrently
+from .adapter_field import AdapterField
 from .base import BaseQuery
 
 
@@ -9,32 +11,58 @@ FIELD_NAME_SEPARATOR = '__'
 
 
 class FromQuery(BaseQuery):
+    @staticmethod
+    async def _set_attr(
+        query: BaseQuery,
+        field_name: str,
+        value: Any
+    ):
+        query_class = query.get_class()
+        adapter_field: Optional[AdapterField] = getattr(
+            query_class, field_name, None
+        )
+        if adapter_field is None:
+            setattr(query, field_name, value)
+            return
+
+        setattr(query, field_name, await adapter_field(value))
+
     @classmethod
-    def from_mapper(
+    async def from_mapper(
         cls,
         mapper: DeclarativeMeta
     ) -> BaseQuery:
         type_hints = cls.get_type_hints()
         query = cls()
+        set_attr_coroutines = list()
         for field_name in type_hints.keys():
-            setattr(query, field_name, getattr(mapper, field_name, None))
+            set_attr_coroutines.append(
+                cls._set_attr(
+                    query=query,
+                    field_name=field_name,
+                    value=getattr(mapper, field_name, None)
+                )
+            )
+
+        await run_concurrently(*set_attr_coroutines)
 
         return query
 
     @classmethod
-    def from_mappers(
+    async def from_mappers(
         cls,
         mappers: List[DeclarativeMeta]
     ) -> List[BaseQuery]:
-        queries = list()
+        coroutines = list()
         for mapper in mappers:
-            query = cls.from_mapper(mapper=mapper)
-            queries.append(query)
+            coroutines.append(cls.from_mapper(mapper=mapper))
+
+        queries: List[BaseQuery] = await run_concurrently(*coroutines)
 
         return queries
 
     @classmethod
-    def _from_mapping(
+    async def _from_mapping(
         cls,
         mapping: Dict[str, Any]
     ) -> BaseQuery:
@@ -42,10 +70,18 @@ class FromQuery(BaseQuery):
 
         nested_mappings: Dict[str, Dict[str, Any]] = dict()
 
+        set_attr_coroutines = list()
+
         for field, value in mapping.items():
             field_name, *deeper = field.split(FIELD_NAME_SEPARATOR)
             if not deeper:
-                setattr(query, field_name, value)
+                set_attr_coroutines.append(
+                    cls._set_attr(
+                        query=query,
+                        field_name=field_name,
+                        value=value
+                    )
+                )
                 continue
 
             if field_name in nested_mappings:
@@ -62,39 +98,33 @@ class FromQuery(BaseQuery):
 
         for field_name, mapping in nested_mappings.items():
             nested_query = cls.get_field_query(field_name=field_name)
-            nested_query = nested_query._from_mapping(mapping=mapping)
+            nested_query = await nested_query._from_mapping(mapping=mapping)
             setattr(query, field_name, None)
             for value in nested_query.dict.values():
                 if value is not None:
                     setattr(query, field_name, nested_query)
                     break
 
+        await run_concurrently(*set_attr_coroutines)
+
         return query
 
     @classmethod
-    def from_selected_row(
+    async def from_selected_row(
         cls,
         row: Row
     ) -> BaseQuery:
-        return cls._from_mapping(mapping=dict(row))
+        return await cls._from_mapping(mapping=dict(row))
 
     @classmethod
-    def from_selected_rows(
+    async def from_selected_rows(
         cls,
         rows: List[Row]
     ) -> List[BaseQuery]:
-        queries = list()
+        coroutines = list()
         for row in rows:
-            queries.append(cls.from_selected_row(row=row))
+            coroutines.append(cls.from_selected_row(row=row))
+
+        queries = await run_concurrently(*coroutines)
 
         return queries
-
-
-a = {
-    'id': 1,
-    'name': 'some_name',
-    'device_type__id': 'some_id',
-    'device_type__name': 'some_name',
-    'device_type__meter_inline__id': 3,
-}
-

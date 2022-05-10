@@ -1,6 +1,6 @@
 from uuid import UUID
 from types import MappingProxyType
-from typing import Any, Mapping, Callable, Optional, Union
+from typing import Any, Mapping, Callable, Optional, Union, Sequence, Literal
 from sqlalchemy.orm import DeclarativeMeta, InstrumentedAttribute
 from sqlalchemy.orm.util import AliasedClass
 from sqlalchemy.sql import Select, Insert, Update, Delete
@@ -21,9 +21,17 @@ class StringClauseBuilder(BaseClauseBinder):
     IN_OPERATOR = 'in'
     NOT_IN_OPERATOR = 'not_in'
 
+    _value_type = Union[
+        int,
+        float,
+        str,
+        bool,
+        Sequence[int, float, str, bool],
+    ]
+
     LOOKUP_OPERATORS: Mapping[
         str,
-        Callable[[InstrumentedAttribute, Any], BinaryExpression]
+        Callable[[InstrumentedAttribute, _value_type], BinaryExpression]
     ] = MappingProxyType({
         EQUAL_OPERATOR:
             lambda _column, _value: _column == _value,
@@ -46,6 +54,24 @@ class StringClauseBuilder(BaseClauseBinder):
         NOT_IN_OPERATOR:
             lambda _column, _value: _column.not_in(_value),
     })
+
+    @classmethod
+    def get_lookup_operator(
+        cls,
+        lookup: str
+    ) -> Callable[[InstrumentedAttribute, _value_type], BinaryExpression]:
+        if not lookup:
+            lookup = cls.EQUAL_OPERATOR
+
+        lookup_parts = lookup.split(cls.LOOKUP_STRING)
+        lookup_operator = lookup_parts[-1]
+
+        if lookup_operator not in cls.LOOKUP_OPERATORS:
+            raise KeyError(
+                f'{lookup=} with {lookup_operator} '
+                f'not in {cls.LOOKUP_OPERATORS.keys()}'
+            )
+        return cls.LOOKUP_OPERATORS.get(lookup)
 
     def _get_column(
         self,
@@ -101,7 +127,7 @@ class StringClauseBuilder(BaseClauseBinder):
         if operator_name not in self.LOOKUP_OPERATORS:
             operator_name = self.EQUAL_OPERATOR
 
-        lookup_operator = self.LOOKUP_OPERATORS.get(operator_name)
+        lookup_operator = self.get_lookup_operator(operator_name)
 
         if lookup_operator is None:
             return
