@@ -4,6 +4,7 @@ from sqlalchemy.orm import DeclarativeMeta
 from sqlalchemy.sql import Select, Insert, Update, Delete
 from ..clause_binder import ClauseBinder
 from ..query import CRUDQuery
+from .get_provider import GetProvider
 from .select_provider import SelectProvider
 from .insert_provider import InsertProvider
 from .update_provider import UpdateProvider
@@ -13,6 +14,7 @@ from .count_provider import CountProvider
 
 class AbstractProvider(
     ABC,
+    GetProvider,
     CountProvider,
     InsertProvider,
     UpdateProvider,
@@ -115,6 +117,16 @@ class AbstractProvider(
             query=self._query_type.set_filters(**kwargs),
             mapper=self._mapper,
             clause_binder=self._clause_binder
+        )
+
+    async def get(
+        self,
+        **kwargs
+    ):
+        return await self._get(
+            query=self._query_type.set_filters(**kwargs),
+            mapper=self._mapper,
+            clause_binder=self._clause_binder,
         )
 
     async def insert(
