@@ -5,7 +5,7 @@ with open('./README.md', 'r', encoding='utf-8') as file:
 
 setuptools.setup(
     name='alchemy_provider',
-    version='0.0.9',
+    version='0.0.10',
     author='Sherkhan Syzdykov',
     author_email='syzdykovsherkhan@gmail.com',
     description='Dynamic query builder based on SQLAlchemy Core and ORM',
