@@ -31,8 +31,6 @@ class CountProvider(SelectProvider):
             order by test.name, test2.id
         ) as alias1
         """
-        query.limit = None
-        query.offset = None
         select_stmt = self._make_select_stmt(
             query=query,
             mapper=mapper,
